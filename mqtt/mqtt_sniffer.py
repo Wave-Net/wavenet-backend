@@ -2,9 +2,10 @@
 from scapy.all import *
 from mqtt_packet import MQTTPacket, decode_remaining_length
 import json
+import asyncio
 
 # 패킷 캡처 콜백 함수
-def mqtt_packet_callback(packet):
+def mqtt_packet_callback(packet, websocket):
     if TCP in packet and Raw in packet:
         payload = packet[Raw].load
         if len(payload) >= 2:
@@ -31,15 +32,9 @@ def mqtt_packet_callback(packet):
                         print(f"Data: {mqtt_packet.data.decode('utf-8')}")
                         print("--------------------")
                         
-                        return json_data
+                        # 웹소켓으로 패킷 정보 전송
+                        asyncio.create_task(websocket.send(json_data))
 
 # 패킷 스니핑 시작
-async def start_mqtt_sniffer():
-    sniff(prn=mqtt_packet_callback, store=0)
-
-# 웹소켓 서버로 패킷 정보 전송
-async def send_packet_info(websocket, path):
-    while True:
-        packet_info = mqtt_packet_callback(sniff(count=1))
-        if packet_info:
-            await websocket.send(packet_info)
+async def start_mqtt_sniffer(websocket):
+    sniff(prn=lambda packet: mqtt_packet_callback(packet, websocket), store=0)
