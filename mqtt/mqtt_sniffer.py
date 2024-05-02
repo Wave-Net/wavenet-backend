@@ -5,7 +5,7 @@ import json
 import asyncio
 
 # 패킷 캡처 콜백 함수
-def mqtt_packet_callback(packet, websocket):
+def mqtt_packet_callback(packet, websocket, loop):
     if TCP in packet and Raw in packet:
         payload = packet[Raw].load
         if len(payload) >= 2:
@@ -32,9 +32,10 @@ def mqtt_packet_callback(packet, websocket):
                         print(f"Data: {mqtt_packet.data.decode('utf-8')}")
                         print("--------------------")
                         
-                        # 웹소켓으로 패킷 정보 전송
-                        asyncio.create_task(websocket.send(json_data))
+                        # 웹소켓으로 패킷 정보 전송 (메인 스레드의 이벤트 루프에서 실행)
+                        asyncio.run_coroutine_threadsafe(websocket.send(json_data), loop)
 
 # 패킷 스니핑 시작
 async def start_mqtt_sniffer(websocket):
-    sniff(prn=lambda packet: mqtt_packet_callback(packet, websocket), store=0)
+    loop = asyncio.get_running_loop()
+    await asyncio.to_thread(sniff, prn=lambda packet: mqtt_packet_callback(packet, websocket, loop), store=0)
