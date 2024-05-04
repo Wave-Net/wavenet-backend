@@ -1,6 +1,6 @@
 from scapy.all import *
 from scapy.contrib.mqtt import *
-from .handler import PacketHandler
+from .packet_handler import PacketHandler
 
 
 class MQTTHandler(PacketHandler):
