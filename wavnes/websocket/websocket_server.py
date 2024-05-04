@@ -1,6 +1,6 @@
 import asyncio
 import websockets
-from wavnes.websocket.websocket_handler import websocket_handler
+from .websocket_handler import websocket_handler
 
 
 async def start_websocket_server():

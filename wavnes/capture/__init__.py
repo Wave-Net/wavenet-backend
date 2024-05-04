@@ -1,1 +1,1 @@
-from wavnes.capture.sniffer import start_mqtt_sniffer
+from .sniffer import start_sniffer

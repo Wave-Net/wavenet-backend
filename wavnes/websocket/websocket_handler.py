@@ -1,5 +1,5 @@
 import asyncio
-from wavnes.capture import start_mqtt_sniffer
+from ..capture import start_sniffer
 
 
 async def websocket_handler(websocket, path):
@@ -9,7 +9,7 @@ async def websocket_handler(websocket, path):
     print("Starting packet capture...")
 
     # MQTT 패킷 스니퍼 시작
-    sniffer_task = asyncio.create_task(start_mqtt_sniffer(websocket))
+    sniffer_task = asyncio.create_task(start_sniffer(websocket))
 
     try:
         await sniffer_task
