@@ -1,5 +1,5 @@
 import asyncio
-from wavnes.sniffer import start_mqtt_sniffer
+from wavnes.capture import start_mqtt_sniffer
 
 
 async def websocket_handler(websocket, path):
