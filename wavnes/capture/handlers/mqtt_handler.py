@@ -9,6 +9,10 @@ class MQTTHandler(PacketHandler):
 
         packet_info = {
             'protocol': 'MQTT',
+            'source_ip': str(packet[IP].src),
+            'destination_ip': str(packet[IP].dst),
+            'source_port': int(packet[TCP].sport),
+            'destination_port': int(packet[TCP].dport),
             'type': str(type(mqtt_packet).__name__),
             'qos': int(mqtt_packet.QOS),
             'length': int(mqtt_packet.len)
