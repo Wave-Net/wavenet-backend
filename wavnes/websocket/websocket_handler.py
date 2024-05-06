@@ -14,7 +14,6 @@ async def websocket_handler(websocket, path):
             data = json.loads(message)
             if data.get("type") == "start_capture":
                 print("Starting packet capture...")
-                # MQTT 패킷 스니퍼 시작
                 sniffer_task = asyncio.create_task(start_sniffer(websocket))
                 try:
                     await sniffer_task
