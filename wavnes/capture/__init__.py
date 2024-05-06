@@ -1,1 +1,1 @@
-from .sniffer import start_sniffer
+from .sniffer_manager import SnifferManager
