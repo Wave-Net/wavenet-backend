@@ -1,5 +1,7 @@
 import json
 import asyncio
+import threading
+import time
 from scapy.all import *
 from scapy.contrib.mqtt import *
 from .handlers import *
@@ -36,7 +38,7 @@ def _packet_callback(packet, websocket, loop):
     global start_time, previous_timestamp
 
     handler = _select_packet_handler(packet)
-    if handler == None:
+    if handler is None:
         return
 
     packet_info = handler.process_packet(packet)
@@ -47,7 +49,35 @@ def _packet_callback(packet, websocket, loop):
     asyncio.run_coroutine_threadsafe(websocket.send(json_data), loop)
 
 
-# 패킷 스니핑 시작
-async def start_sniffer(websocket):
-   loop = asyncio.get_running_loop()
-   await asyncio.to_thread(sniff, prn=lambda packet: _packet_callback(packet, websocket, loop), store=0)
+class SnifferManager:
+    def __init__(self, websocket):
+        self.websocket = websocket
+        self.sniffer_thread = None
+        self.lock = threading.Lock()
+        self.is_running_sniffer = False
+
+    async def start_sniffer(self):
+        loop = asyncio.get_running_loop()
+
+        def sniff_thread():
+            def stop_sniff(packet):
+                with self.lock:
+                    return not self.is_running_sniffer
+
+            with self.lock:
+                self.is_running_sniffer = True
+
+            sniff(prn=lambda packet: _packet_callback(packet, self.websocket, loop),
+                  stop_filter=stop_sniff)
+
+            with self.lock:
+                self.is_running_sniffer = False
+
+        self.sniffer_thread = threading.Thread(target=sniff_thread)
+        self.sniffer_thread.start()
+
+    def stop_sniffer(self):
+        if self.sniffer_thread and self.sniffer_thread.is_alive():
+            with self.lock:
+                self.is_running_sniffer = False
+            self.sniffer_thread.join()
