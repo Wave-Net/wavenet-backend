@@ -1,10 +1,11 @@
+import websockets
 import json
-from ..capture import SnifferManager
+from wavnes.sniffer import Sniffer
 
 
-async def websocket_handler(websocket, path):
+async def _websocket_handler(websocket, path):
     client_addr = websocket.remote_address
-    sniffer_manager = SnifferManager(websocket)
+    sniffer = Sniffer(websocket)
 
     print(f"Client connected from {client_addr}")
 
@@ -14,11 +15,19 @@ async def websocket_handler(websocket, path):
             data = json.loads(message)
             if data.get("type") == "start_capture":
                 print("Starting packet capture...")
-                await sniffer_manager.start_sniffer()
+                await sniffer.start_sniff()
 
             elif data.get("type") == "stop_capture":
-                sniffer_manager.stop_sniffer()
+                sniffer.stop_sniff()
                 print("Stoppppp packet capture...")
 
     finally:
         print(f"Client disconnected from {client_addr}")
+
+
+async def start_server(host, port):
+    print("Starting WebSocket server...")
+    server = await websockets.serve(_websocket_handler, host, port)
+    print("WebSocket server started")
+    await server.wait_closed()
+    print("WebSocket server stopped")

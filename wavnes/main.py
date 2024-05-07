@@ -1,6 +1,5 @@
-import asyncio
-from .websocket import start_websocket_server
+from wavnes.server import start_server
 
 
 async def main():
-    await start_websocket_server()
+    await start_server("localhost", 8765)
