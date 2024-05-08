@@ -36,61 +36,72 @@ class MQTTHandler(PacketHandler):
 
         self.packet_info.update({
             'name': 'MQTT',
-            'mqtt_type': packet_type,
-            'mqtt_dup': int(mqtt_packet.DUP),
-            'mqtt_qos': int(mqtt_packet.QOS),
-            'mqtt_retain': int(mqtt_packet.RETAIN),
-            'mqtt_msg_len': len(mqtt_packet)
+            'header': {
+                'msg_len': len(mqtt_packet),
+                'dup': int(mqtt_packet.DUP),
+                'qos': int(mqtt_packet.QOS),
+                'retain': int(mqtt_packet.RETAIN),
+            },
+            'type': packet_type,
         })
 
         if packet_type == 'CONNECT':
-            self.packet_info.update({
-                'connect_proto_name': str(mqtt_packet.protoname),
-                'connect_mqtt_level': str(PROTOCOL_LEVEL.get(mqtt_packet.protolevel, "Unknown")),
-                'connect_usernameflag': int(mqtt_packet.usernameflag),
-                'connect_passwordflag': int(mqtt_packet.passwordflag),
-                'connect_willretainflag': int(mqtt_packet.willretainflag),
-                'connect_willQOSflag': int(mqtt_packet.willQOSflag),
-                'connect_willflag': int(mqtt_packet.willflag),
-                'connect_cleansession': int(mqtt_packet.cleansess),
-                'connect_reserved': int(mqtt_packet.reserved),
-                'connect_keep_alive': int(mqtt_packet.klive),
-                'connect_clientId': str(mqtt_packet.clientId),
-            })
+            self.packet_info['connect'] = {
+                'proto_name': str(mqtt_packet.protoname),
+                'mqtt_level': str(PROTOCOL_LEVEL.get(mqtt_packet.protolevel, "Unknown")),
+                'usernameflag': int(mqtt_packet.usernameflag),
+                'passwordflag': int(mqtt_packet.passwordflag),
+                'willretainflag': int(mqtt_packet.willretainflag),
+                'willQOSflag': int(mqtt_packet.willQOSflag),
+                'willflag': int(mqtt_packet.willflag),
+                'cleansession': int(mqtt_packet.cleansess),
+                'reserved': int(mqtt_packet.reserved),
+                'keep_alive': int(mqtt_packet.klive),
+                'clientId': str(mqtt_packet.clientId),
+            }
             if mqtt_packet.willflag:
-                self.packet_info['connect_willtopic'] = str(
+                self.packet_info['connect']['willtopic'] = str(
                     mqtt_packet.willtopic)
-                self.packet_info['connect_willmsg'] = str(mqtt_packet.willmsg)
+                self.packet_info['connect']['willmsg'] = str(
+                    mqtt_packet.willmsg)
             if mqtt_packet.usernameflag:
-                self.packet_info['connect_username'] = str(
+                self.packet_info['connect']['username'] = str(
                     mqtt_packet.username)
             if mqtt_packet.passwordflag:
-                self.packet_info['connect_password'] = str(
+                self.packet_info['connect']['password'] = str(
                     mqtt_packet.password)
 
         elif packet_type == 'CONNACK':
-            self.packet_info.update({
-                'connack_ackflag': int(mqtt_packet.sessPresentFlag),
-                'connack_return_code': str(mqtt_packet.retcode),
-            })
+            self.packet_info['connack'] = {
+                'ackflag': int(mqtt_packet.sessPresentFlag),
+                'return_code': str(mqtt_packet.retcode),
+            }
 
         elif packet_type == 'PUBLISH':
-            self.packet_info.update({
-                'publish_topic': str(mqtt_packet.topic),
-                'publish_msgid': str(mqtt_packet.msgid),
-                'publish_msgvalue': str(mqtt_packet.value),
-            })
+            self.packet_info['publish'] = {
+                'topic': str(mqtt_packet.topic),
+                'msgid': str(mqtt_packet.msgid),
+                'msgvalue': str(mqtt_packet.value),
+            }
 
         elif packet_type == 'PUBACK':
-            self.packet_info['puback_msgid'] = str(mqtt_packet.msgid)
+            self.packet_info['puback'] = {
+                'msgid': str(mqtt_packet.msgid),
+            }
 
         elif packet_type == 'PUBREC':
-            self.packet_info['pubrec_msgid'] = str(mqtt_packet.msgid)
+            self.packet_info['pubrec'] = {
+                'msgid': str(mqtt_packet.msgid),
+            }
 
         elif packet_type == 'PUBREL':
-            self.packet_info['pubrel_msgid'] = str(mqtt_packet.msgid)
+            self.packet_info['pubrel'] = {
+                'msgid': str(mqtt_packet.msgid),
+            }
 
         elif packet_type == 'PUBCOMP':
-            self.packet_info['pubcomp_msgid'] = str(mqtt_packet.msgid)
+            self.packet_info['pubcomp'] = {
+                'msgid': str(mqtt_packet.msgid),
+            }
 
         return self.packet_info
