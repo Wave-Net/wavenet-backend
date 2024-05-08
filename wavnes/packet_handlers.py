@@ -45,7 +45,7 @@ class MQTTHandler(PacketHandler):
         if packet_type == 'CONNECT':
             self.packet_info.update({
                 'connect_proto_name': str(mqtt_packet.protoname),
-                'connect_mqtt_level': f'v{mqtt_packet.protolevel}',
+                'connect_mqtt_level': str(PROTOCOL_LEVEL.get(mqtt_packet.protolevel, "Unknown")),
                 'connect_usernameflag': int(mqtt_packet.usernameflag),
                 'connect_passwordflag': int(mqtt_packet.passwordflag),
                 'connect_willretainflag': int(mqtt_packet.willretainflag),
