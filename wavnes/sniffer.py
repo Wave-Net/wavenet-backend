@@ -28,6 +28,7 @@ class Sniffer:
             'recv_data': 0,
         }
         self.previous_statics = None
+        self.statics_task = None
 
     def _update_previous_time(self, packet):
         self.previous_time = packet.time
@@ -78,13 +79,15 @@ class Sniffer:
         self.sniffer_thread.start()
 
         self.previous_statics = self.packet_statics.copy()
-        await self.send_packet_statics()
+        self.statics_task = asyncio.create_task(self.send_packet_statics())
 
     def stop_sniff(self):
         if self.sniffer_thread and self.sniffer_thread.is_alive():
             with self.lock:
                 self.is_running = False
             self.sniffer_thread.join()
+        if self.statics_task:
+            self.statics_task.cancel()
 
     async def send_packet_statics(self):
         while True:
