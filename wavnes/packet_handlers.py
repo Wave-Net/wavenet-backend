@@ -34,7 +34,7 @@ class MQTTHandler(PacketHandler):
         mqtt_packet = packet[MQTT]
         packet_type = CONTROL_PACKET_TYPE.get(mqtt_packet.type, 'Unknown')
 
-        self.packet_info = {
+        self.packet_info.update({
             'name': 'MQTT',
             'header': {
                 'msg_len': len(mqtt_packet),
@@ -43,7 +43,7 @@ class MQTTHandler(PacketHandler):
                 'retain': int(mqtt_packet.RETAIN),
             },
             'type': packet_type,
-        }
+        })
 
         if packet_type == 'CONNECT':
             self.packet_info['connect'] = {
