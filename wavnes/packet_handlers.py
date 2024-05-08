@@ -40,6 +40,7 @@ class MQTTHandler(PacketHandler):
             'mqtt_dup': int(mqtt_packet.DUP),
             'mqtt_qos': int(mqtt_packet.QOS),
             'mqtt_retain': int(mqtt_packet.RETAIN),
+            'mqtt_msg_len': len(mqtt_packet)
         })
 
         if packet_type == 'CONNECT':
