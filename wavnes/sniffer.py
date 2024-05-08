@@ -20,7 +20,7 @@ class Sniffer:
         self.sniffer_thread = None
         self.lock = threading.Lock()
         self.is_running = False
-        self.target_ip = '172.16.17.113'
+        self.target_ip = '137.135.83.217'
         self.packet_statics = {
             'send_pkt': 0,
             'recv_pkt': 0,
