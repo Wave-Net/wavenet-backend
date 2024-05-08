@@ -57,16 +57,19 @@ class MQTTHandler(PacketHandler):
                 'connect_clientId': str(mqtt_packet.clientId),
             })
             if mqtt_packet.willflag:
-                self.packet_info['connect_willtopic'] = str(mqtt_packet.willtopic)
+                self.packet_info['connect_willtopic'] = str(
+                    mqtt_packet.willtopic)
                 self.packet_info['connect_willmsg'] = str(mqtt_packet.willmsg)
             if mqtt_packet.usernameflag:
-                self.packet_info['connect_username'] = str(mqtt_packet.username)
+                self.packet_info['connect_username'] = str(
+                    mqtt_packet.username)
             if mqtt_packet.passwordflag:
-                self.packet_info['connect_password'] = str(mqtt_packet.password)
+                self.packet_info['connect_password'] = str(
+                    mqtt_packet.password)
 
         elif packet_type == 'CONNACK':
             self.packet_info.update({
-                'connack_ackflag': int(mqtt_packet.sesspresent),
+                'connack_ackflag': int(mqtt_packet.sessPresentFlag),
                 'connack_return_code': str(mqtt_packet.retcode),
             })
 
