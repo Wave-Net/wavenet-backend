@@ -4,16 +4,6 @@ from scapy.all import *
 from scapy.contrib.mqtt import *
 
 
-def packet_time_info(start_time, previous_time, packet):
-    seconds_since_previous = float(packet.time - previous_time)
-    return {
-        'timestamp': '{:.6f}'.format(packet.time),
-        'time_of_day': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(packet.time)),
-        'seconds_since_beginning': '{:.6f}'.format(float(packet.time - start_time)),
-        'seconds_since_previous': '{:.6f}'.format(seconds_since_previous),
-    }
-
-
 class PacketHandler(ABC):
     def __init__(self, packet):
         self.packet_info = {
@@ -26,6 +16,10 @@ class PacketHandler(ABC):
 
     @abstractmethod
     def process_packet(self, packet):
+        pass
+
+    @abstractmethod
+    def get_packet_info(self, packet):
         pass
 
 
@@ -104,4 +98,5 @@ class MQTTHandler(PacketHandler):
                 'msgid': str(mqtt_packet.msgid),
             }
 
+    def get_packet_info(self):
         return self.packet_info

@@ -4,12 +4,38 @@ import threading
 import time
 from scapy.all import *
 from scapy.contrib.mqtt import *
-from wavnes.packet_handlers import MQTTHandler, packet_time_info
+from wavnes.packet_handlers import MQTTHandler
 
 
-class SnifferStatistics:
+class PacketTimeInfo():
     def __init__(self):
         self.reset()
+
+    def reset(self):
+        self.index = 0
+        self.start_time = time.time()
+        self.previous_time = 0.0
+        self.current_time = 0.0
+
+    def update(self, packet):
+        self.index += 1
+        self.previous_time = self.current_time
+        self.current_time = packet.time
+
+    def get_time_info(self):
+        return {
+            'index': self.index,
+            'timestamp': '{:.6f}'.format(self.current_time),
+            'time_of_day': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.current_time)),
+            'seconds_since_beginning': '{:.6f}'.format(float(self.current_time - self.start_time)),
+            'seconds_since_previous': '{:.6f}'.format(float(self.current_time - self.previous_time)),
+        }
+
+
+class PacketStatistics:
+    def __init__(self, target_ip):
+        self.reset()
+        self.target_ip = target_ip
 
     def reset(self):
         self.send_pkt = 0
@@ -17,13 +43,13 @@ class SnifferStatistics:
         self.send_data = 0
         self.recv_data = 0
 
-    def update(self, packet_info, my_ip):
-        if packet_info.get('source_ip') == my_ip:
+    def update(self, packet):
+        if packet['IP'].src == self.target_ip:
             self.send_pkt += 1
-            self.send_data += packet_info.get('length', 0)
-        elif packet_info.get('destination_ip') == my_ip:
+            self.send_data += int(packet.len)
+        elif packet['IP'].dst == self.target_ip:
             self.recv_pkt += 1
-            self.recv_data += packet_info.get('length', 0)
+            self.recv_data += int(packet.len)
 
     def get_delta(self, previous_statics):
         if previous_statics is None:
@@ -47,44 +73,45 @@ class SnifferStatistics:
 
 class Sniffer:
     def __init__(self, websocket):
+        self.is_running = False
         self.websocket = websocket
-        self.my_ip = '137.135.83.217'
-        self.start_time = None
-        self.previous_time = 0.0
+        self.target_ip = '137.135.83.217'
+        self.time_info = PacketTimeInfo()
+        self.prev_stat = None
+        self.stat = PacketStatistics(self.target_ip)
+        self.handler = None
         self.sniffer_thread = None
         self.lock = threading.Lock()
-        self.is_running = False
-        self.statics = SnifferStatistics()
         self.packet_queue = queue.Queue()
-        self.index = 0
-        
-    def _init_data(self):
-        self.start_time = time.time()
-        self.statics.reset()
-        self.index = 0
-        
-    def _update_index(self):
-        self.index += 1
+
+    def reset(self):
+        self.time_info.reset()
+        self.stat.reset()
+        self.handler = None
+        self.packet_info = {}
+
+    def _set_packet_hadnler(self, packet):
+        if MQTT in packet:
+            self.handler = MQTTHandler(packet)
+            return
+        self.handler = None
 
     def _packet_callback(self, packet):
-        handler = self._select_packet_handler(packet)
-        if handler is None:
+        self._set_packet_hadnler(packet)
+        if self.handler == None:
             return
 
         print('Capture handling...')
-        packet_info = {'index': self.index}
-        packet_info.update(handler.process_packet(packet))
-        packet_info.update(packet_time_info(
-            self.start_time, self.previous_time, packet))
-        self.statics.update(packet_info, self.my_ip)
-        self._update_index()
+        self.time_info.update(packet)
+        self.handler.process_packet(packet)
+
+        packet_info = {}
+        packet_info.update(self.time_info.get_time_info())
+        packet_info.update(self.handler.get_packet_info())
+
+        self.stat.update(packet)
 
         self.packet_queue.put(packet_info)
-
-    def _select_packet_handler(self, packet):
-        if MQTT in packet:
-            return MQTTHandler(packet)
-        return None
 
     def _sniff_thread(self):
         def stop_filter(packet):
@@ -103,13 +130,12 @@ class Sniffer:
                 self.is_running = False
 
     async def start_sniff(self):
-        self._init_data()
+        self.reset()
 
         self.sniffer_thread = threading.Thread(target=self._sniff_thread)
         self.sniffer_thread.start()
 
-        self.previous_statics = self.statics
-        self.statics_task = asyncio.create_task(self.send_packet_statics())
+        self.stat_task = asyncio.create_task(self.send_packet_statistics())
         self.packet_task = asyncio.create_task(self.send_packets())
 
     def stop_sniff(self):
@@ -118,18 +144,21 @@ class Sniffer:
                 self.is_running = False
             self.sniffer_thread.join()
 
-        if self.statics_task:
-            self.statics_task.cancel()
+        if self.stat_task:
+            self.stat_task.cancel()
 
-    async def send_packet_statics(self):
+        if self.packet_task:
+            self.packet_task.cancel()
+
+    async def send_packet_statistics(self):
         while True:
             await asyncio.sleep(1)
             with self.lock:
-                statics_delta = self.statics.get_delta(self.previous_statics)
-                self.previous_statics = self.statics
+                stat_delta = self.stat.get_delta(self.prev_stat)
+                self.prev_stat = self.stat
                 await self.websocket.send(json.dumps({
-                    'total_statics': self.statics.get_total(),
-                    'statics_delta': statics_delta
+                    'total_statistics': self.stat.get_total(),
+                    'statistics_delta': stat_delta
                 }))
 
     async def send_packets(self):
