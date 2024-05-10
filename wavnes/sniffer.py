@@ -46,7 +46,8 @@ class SnifferStatistics:
 
 
 class Sniffer:
-    def __init__(self, websocket):
+    def __init__(self, websocket=None, debug=False):
+        self.debug = debug
         self.websocket = websocket
         self.my_ip = '137.135.83.217'
         self.start_time = None
@@ -57,12 +58,12 @@ class Sniffer:
         self.statics = SnifferStatistics()
         self.packet_queue = queue.Queue()
         self.index = 0
-        
+
     def _init_data(self):
         self.start_time = time.time()
         self.statics.reset()
         self.index = 0
-        
+
     def _update_index(self):
         self.index += 1
 
@@ -71,6 +72,10 @@ class Sniffer:
         if handler is None:
             return
 
+        if self.debug:
+            print(json.dumps(handler.process_packet(packet), indent=2))
+            return
+    
         print('Capture handling...')
         packet_info = {'index': self.index}
         packet_info.update(handler.process_packet(packet))
@@ -104,6 +109,10 @@ class Sniffer:
 
     async def start_sniff(self):
         self._init_data()
+
+        if self.debug:
+            sniff(prn=self._packet_callback)
+            return
 
         self.sniffer_thread = threading.Thread(target=self._sniff_thread)
         self.sniffer_thread.start()
