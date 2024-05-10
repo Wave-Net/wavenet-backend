@@ -156,10 +156,12 @@ class Sniffer:
             with self.lock:
                 stat_delta = self.stat.get_delta(self.prev_stat)
                 self.prev_stat = self.stat
-                await self.websocket.send(json.dumps({
+                stat_data = {'message_type': 'stat'}
+                stat_data.update({
                     'total_statistics': self.stat.get_total(),
                     'statistics_delta': stat_delta
-                }))
+                })
+                await self.websocket.send(json.dumps(stat_data))
 
     async def send_packets(self):
         while True:
@@ -169,5 +171,6 @@ class Sniffer:
                 await asyncio.sleep(0.01)
                 continue
 
-            json_data = json.dumps(packet_info)
-            await self.websocket.send(json_data)
+            packet_data = {'message_type': 'packet'}
+            packet_data.update(packet_info)
+            await self.websocket.send(json.dumps(packet_data))
