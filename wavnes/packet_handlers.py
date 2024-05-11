@@ -104,4 +104,36 @@ class MQTTHandler(PacketHandler):
                 'msgid': str(mqtt_packet.msgid),
             }
 
+        elif packet_type == 'SUBSCRIBE':
+            topic_filters = []
+            for topic_filter in mqtt_packet.topics:
+                topic_filters.append({
+                    'topic': topic_filter.topic.decode('utf-8'),
+                    'qos': topic_filter.QOS,
+                })
+            self.packet_info['subscribe'] = {
+                'message_id': int(mqtt_packet.msgid),
+                'topic_filters': topic_filters,
+            }
+
+        elif packet_type == 'SUBACK':
+            return_codes = mqtt_packet.retcode
+            self.packet_info['suback'] = {
+                'message_id': int(mqtt_packet.msgid),
+                'return_codes': return_codes,
+            }
+
+        elif packet_type == 'UNSUBSCRIBE':
+            topic_filters = [topic_filter.decode('utf-8')
+                             for topic_filter in mqtt_packet.topics]
+            self.packet_info['unsubscribe'] = {
+                'message_id': int(mqtt_packet.msgid),
+                'topic_filters': topic_filters,
+            }
+
+        elif packet_type == 'UNSUBACK':
+            self.packet_info['unsuback'] = {
+                'message_id': int(mqtt_packet.msgid),
+            }
+
         return self.packet_info
