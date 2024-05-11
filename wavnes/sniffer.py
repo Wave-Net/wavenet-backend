@@ -3,8 +3,11 @@ import asyncio
 import threading
 import time
 from scapy.all import *
+from scapy.layers.inet import IP
 from scapy.contrib.mqtt import *
-from wavnes.packet_handlers import MQTTHandler, packet_time_info
+from scapy.contrib.coap import *
+from wavnes.packet_handlers import MQTTHandler, CoAPHandler, packet_time_info
+
 
 
 class SnifferStatistics:
@@ -49,7 +52,7 @@ class Sniffer:
     def __init__(self, websocket=None, debug=False):
         self.debug = debug
         self.websocket = websocket
-        self.my_ip = '137.135.83.217'
+        self.my_ip = '127.0.0.1'
         self.start_time = None
         self.previous_time = 0.0
         self.sniffer_thread = None
@@ -88,7 +91,12 @@ class Sniffer:
 
     def _select_packet_handler(self, packet):
         if MQTT in packet:
+            print("find MQTT Packet")
             return MQTTHandler(packet)
+        elif IP in packet and CoAP in packet:
+             print("CoAP over IP packet detected:", packet.summary())
+        elif CoAP in packet:
+            print("CoAP packet without IP layer detected:", packet.summary())
         return None
 
     def _sniff_thread(self):
@@ -111,7 +119,7 @@ class Sniffer:
         self._init_data()
 
         if self.debug:
-            sniff(prn=self._packet_callback)
+            sniff(prn=self._packet_callback, iface='lo0')
             return
 
         self.sniffer_thread = threading.Thread(target=self._sniff_thread)

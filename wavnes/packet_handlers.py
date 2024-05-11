@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import time
 from scapy.all import *
 from scapy.contrib.mqtt import *
-
+from scapy.contrib.coap import *
 
 def packet_time_info(start_time, previous_time, packet):
     seconds_since_previous = float(packet.time - previous_time)
@@ -103,5 +103,36 @@ class MQTTHandler(PacketHandler):
             self.packet_info['pubcomp'] = {
                 'msgid': str(mqtt_packet.msgid),
             }
+
+        return self.packet_info
+
+class CoAPHandler(PacketHandler):
+    def process_packet(self, packet):
+        coap_packet = packet[CoAP]
+        self.packet_info.update({
+            'name': 'CoAP',
+            'version': int(coap_packet.version),
+            'type': int(coap_packet.type),
+            'token_length': int(coap_packet.tkl),
+            'code': int(coap_packet.code),
+            'message_id': int(coap_packet.mid),
+            'token': bytes(coap_packet.token).hex()
+        })
+
+        # Extracting options if they exist
+        options = []
+        for option in coap_packet.opt.option:
+            option_info = {
+                'number': option.otype,
+                'length': len(option.load),
+                'value': bytes(option.load).hex() if option.load is not None else None
+            }
+            options.append(option_info)
+        if options:
+            self.packet_info['options'] = options
+
+        # Extracting payload if it exists
+        if coap_packet.payload:
+            self.packet_info['payload'] = bytes(coap_packet.payload).decode('utf-8', errors='ignore')
 
         return self.packet_info
