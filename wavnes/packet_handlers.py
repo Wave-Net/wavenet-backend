@@ -30,7 +30,7 @@ class MQTTHandler(PacketHandler):
         self.packet_info.update({
             'name': 'MQTT',
             'header': {
-                'msg_len': str(len(mqtt_packet)),
+                'msg_len': int(mqtt_packet.len),
                 'dup': str(mqtt_packet.DUP),
                 'qos': str(mqtt_packet.QOS),
                 'retain': str(mqtt_packet.RETAIN),
