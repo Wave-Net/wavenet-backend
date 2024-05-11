@@ -9,7 +9,6 @@ from scapy.contrib.coap import *
 from wavnes.packet_handlers import MQTTHandler, CoAPHandler, packet_time_info
 
 
-
 class SnifferStatistics:
     def __init__(self):
         self.reset()
@@ -78,7 +77,7 @@ class Sniffer:
         if self.debug:
             print(json.dumps(handler.process_packet(packet), indent=2))
             return
-    
+
         print('Capture handling...')
         packet_info = {'index': self.index}
         packet_info.update(handler.process_packet(packet))
@@ -94,9 +93,10 @@ class Sniffer:
             print("find MQTT Packet")
             return MQTTHandler(packet)
         elif IP in packet and CoAP in packet:
-             print("CoAP over IP packet detected:", packet.summary())
-        elif CoAP in packet:
-            print("CoAP packet without IP layer detected:", packet.summary())
+            print("find MQTT Packet")
+            print(packet.summary())
+            return None
+            # return CoAPHandler(packet)
         return None
 
     def _sniff_thread(self):
@@ -108,7 +108,7 @@ class Sniffer:
             self.is_running = True
 
         try:
-            sniff(prn=self._packet_callback, stop_filter=stop_filter)
+            sniff(prn=self._packet_callback, stop_filter=stop_filter, store=0)
         except Exception as e:
             print(f"Error in sniff: {e}")
         finally:
@@ -119,7 +119,7 @@ class Sniffer:
         self._init_data()
 
         if self.debug:
-            sniff(prn=self._packet_callback, iface='lo0')
+            sniff(prn=self._packet_callback, store=0)
             return
 
         self.sniffer_thread = threading.Thread(target=self._sniff_thread)
