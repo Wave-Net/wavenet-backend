@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import time
 from scapy.all import *
 from scapy.contrib.mqtt import *
 
@@ -40,43 +39,50 @@ class MQTTHandler(PacketHandler):
         })
 
         if packet_type == 'CONNECT':
-            self.packet_info['connect'] = {
+            connect_info = {
                 'proto_name': str(mqtt_packet.protoname),
                 'mqtt_level': str(PROTOCOL_LEVEL.get(mqtt_packet.protolevel, "Unknown")),
-                'usernameflag': str(mqtt_packet.usernameflag),
-                'passwordflag': str(mqtt_packet.passwordflag),
-                'willretainflag': str(mqtt_packet.willretainflag),
-                'willQOSflag': str(mqtt_packet.willQOSflag),
-                'willflag': str(mqtt_packet.willflag),
-                'cleansession': str(mqtt_packet.cleansess),
-                'reserved': str(mqtt_packet.reserved),
-                'keep_alive': str(mqtt_packet.klive),
+                'usernameflag': int(mqtt_packet.usernameflag),
+                'passwordflag': int(mqtt_packet.passwordflag),
+                'willretainflag': int(mqtt_packet.willretainflag),
+                'willQOSflag': int(mqtt_packet.willQOSflag),
+                'willflag': int(mqtt_packet.willflag),
+                'cleansession': int(mqtt_packet.cleansess),
+                'reserved': int(mqtt_packet.reserved),
                 'clientId': str(mqtt_packet.clientId),
             }
-            if mqtt_packet.willflag:
-                self.packet_info['connect']['willtopic'] = str(mqtt_packet.willtopic)
-                self.packet_info['connect']['willmsg'] = str(mqtt_packet.willmsg)
-            if mqtt_packet.usernameflag:
-                self.packet_info['connect']['username'] = str(mqtt_packet.username)
-            if mqtt_packet.passwordflag:
-                self.packet_info['connect']['password'] = str(mqtt_packet.password)
+            if mqtt_packet.klive is not None:
+                connect_info['keep_alive'] = int(mqtt_packet.klive)
+            if mqtt_packet.willflag and mqtt_packet.willtopic:
+                connect_info['willtopic'] = str(mqtt_packet.willtopic)
+            if mqtt_packet.willflag and mqtt_packet.willmsg:
+                connect_info['willmsg'] = str(mqtt_packet.willmsg)
+            if mqtt_packet.usernameflag and mqtt_packet.username:
+                connect_info['username'] = str(mqtt_packet.username)
+            if mqtt_packet.passwordflag and mqtt_packet.password:
+                connect_info['password'] = str(mqtt_packet.password)
+            self.packet_info['connect'] = connect_info
 
         elif packet_type == 'CONNACK':
-            self.packet_info['connack'] = {
-                'ackflag': str(mqtt_packet.sessPresentFlag),
-                'return_code': str(mqtt_packet.retcode),
+            connack_info = {
+                'ackflag': int(mqtt_packet.sessPresentFlag),
             }
+            if mqtt_packet.retcode is not None:
+                connack_info['return_code'] = int(mqtt_packet.retcode)
+            self.packet_info['connack'] = connack_info
 
         elif packet_type == 'PUBLISH':
-            self.packet_info['publish'] = {
+            publish_info = {
                 'topic': str(mqtt_packet.topic),
-                'msgid': str(mqtt_packet.msgid),
                 'msgvalue': str(mqtt_packet.value),
             }
+            if mqtt_packet.msgid is not None:
+                publish_info['msgid'] = int(mqtt_packet.msgid)
+            self.packet_info['publish'] = publish_info
 
         elif packet_type in ['PUBACK', 'PUBREC', 'PUBREL', 'PUBCOMP']:
             self.packet_info[packet_type.lower()] = {
-                'msgid': str(mqtt_packet.msgid),
+                'msgid': int(mqtt_packet.msgid),
             }
 
         elif packet_type == 'SUBSCRIBE':
@@ -84,29 +90,30 @@ class MQTTHandler(PacketHandler):
             for topic_filter in mqtt_packet.topics:
                 topic_filters.append({
                     'topic': topic_filter.topic.decode('utf-8'),
-                    'qos': str(topic_filter.QOS),
+                    'qos': topic_filter.QOS,
                 })
             self.packet_info['subscribe'] = {
-                'msgid': str(mqtt_packet.msgid),
+                'msgid': int(mqtt_packet.msgid),
                 'topic_filters': topic_filters,
             }
 
         elif packet_type == 'SUBACK':
             self.packet_info['suback'] = {
-                'msgid': str(mqtt_packet.msgid),
-                'return_code': str(mqtt_packet.retcode),
+                'msgid': int(mqtt_packet.msgid),
+                'return_code': int(mqtt_packet.retcode),
             }
 
         elif packet_type == 'UNSUBSCRIBE':
-            topic_filters = [topic_filter.decode('utf-8') for topic_filter in mqtt_packet.topics]
+            topic_filters = [topic_filter.decode(
+                'utf-8') for topic_filter in mqtt_packet.topics]
             self.packet_info['unsubscribe'] = {
-                'msgid': str(mqtt_packet.msgid),
+                'msgid': int(mqtt_packet.msgid),
                 'topic_filters': topic_filters,
             }
 
         elif packet_type == 'UNSUBACK':
             self.packet_info['unsuback'] = {
-                'msgid': str(mqtt_packet.msgid),
+                'msgid': int(mqtt_packet.msgid),
             }
 
     def get_packet_info(self):
