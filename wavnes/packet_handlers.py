@@ -80,28 +80,28 @@ class MQTTHandler(PacketHandler):
         elif packet_type == 'PUBLISH':
             self.packet_info['publish'] = {
                 'topic': str(mqtt_packet.topic),
-                'msgid': str(mqtt_packet.msgid),
+                'msgid': int(mqtt_packet.msgid),
                 'msgvalue': str(mqtt_packet.value),
             }
 
         elif packet_type == 'PUBACK':
             self.packet_info['puback'] = {
-                'msgid': str(mqtt_packet.msgid),
+                'msgid': int(mqtt_packet.msgid),
             }
 
         elif packet_type == 'PUBREC':
             self.packet_info['pubrec'] = {
-                'msgid': str(mqtt_packet.msgid),
+                'msgid': int(mqtt_packet.msgid),
             }
 
         elif packet_type == 'PUBREL':
             self.packet_info['pubrel'] = {
-                'msgid': str(mqtt_packet.msgid),
+                'msgid': int(mqtt_packet.msgid),
             }
 
         elif packet_type == 'PUBCOMP':
             self.packet_info['pubcomp'] = {
-                'msgid': str(mqtt_packet.msgid),
+                'msgid': int(mqtt_packet.msgid),
             }
 
         elif packet_type == 'SUBSCRIBE':
