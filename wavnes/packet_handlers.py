@@ -1,17 +1,6 @@
 from abc import ABC, abstractmethod
-import time
 from scapy.all import *
 from scapy.contrib.mqtt import *
-
-
-def packet_time_info(start_time, previous_time, packet):
-    seconds_since_previous = float(packet.time - previous_time)
-    return {
-        'timestamp': '{:.6f}'.format(packet.time),
-        'time_of_day': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(packet.time)),
-        'seconds_since_beginning': '{:.6f}'.format(float(packet.time - start_time)),
-        'seconds_since_previous': '{:.6f}'.format(seconds_since_previous),
-    }
 
 
 class PacketHandler(ABC):
@@ -26,6 +15,10 @@ class PacketHandler(ABC):
 
     @abstractmethod
     def process_packet(self, packet):
+        pass
+
+    @abstractmethod
+    def get_packet_info(self, packet):
         pass
 
 
@@ -46,7 +39,7 @@ class MQTTHandler(PacketHandler):
         })
 
         if packet_type == 'CONNECT':
-            self.packet_info['connect'] = {
+            connect_info = {
                 'proto_name': str(mqtt_packet.protoname),
                 'mqtt_level': str(PROTOCOL_LEVEL.get(mqtt_packet.protolevel, "Unknown")),
                 'usernameflag': int(mqtt_packet.usernameflag),
@@ -56,22 +49,27 @@ class MQTTHandler(PacketHandler):
                 'willflag': int(mqtt_packet.willflag),
                 'cleansession': int(mqtt_packet.cleansess),
                 'reserved': int(mqtt_packet.reserved),
-                'keep_alive': int(mqtt_packet.klive) if mqtt_packet.klive is not None else None,
                 'clientId': str(mqtt_packet.clientId),
             }
-            if mqtt_packet.willflag:
-                self.packet_info['connect']['willtopic'] = str(mqtt_packet.willtopic)
-                self.packet_info['connect']['willmsg'] = str(mqtt_packet.willmsg)
-            if mqtt_packet.usernameflag:
-                self.packet_info['connect']['username'] = str(mqtt_packet.username)
-            if mqtt_packet.passwordflag:
-                self.packet_info['connect']['password'] = str(mqtt_packet.password)
+            if mqtt_packet.klive is not None:
+                connect_info['keep_alive'] = int(mqtt_packet.klive)
+            if mqtt_packet.willflag and mqtt_packet.willtopic:
+                connect_info['willtopic'] = str(mqtt_packet.willtopic)
+            if mqtt_packet.willflag and mqtt_packet.willmsg:
+                connect_info['willmsg'] = str(mqtt_packet.willmsg)
+            if mqtt_packet.usernameflag and mqtt_packet.username:
+                connect_info['username'] = str(mqtt_packet.username)
+            if mqtt_packet.passwordflag and mqtt_packet.password:
+                connect_info['password'] = str(mqtt_packet.password)
+            self.packet_info['connect'] = connect_info
 
         elif packet_type == 'CONNACK':
-            self.packet_info['connack'] = {
+            connack_info = {
                 'ackflag': int(mqtt_packet.sessPresentFlag),
-                'return_code': int(mqtt_packet.retcode) if mqtt_packet.retcode is not None else None,
             }
+            if mqtt_packet.retcode is not None:
+                connack_info['return_code'] = int(mqtt_packet.retcode)
+            self.packet_info['connack'] = connack_info
 
         elif packet_type == 'PUBLISH':
             publish_info = {
@@ -106,7 +104,8 @@ class MQTTHandler(PacketHandler):
             }
 
         elif packet_type == 'UNSUBSCRIBE':
-            topic_filters = [topic_filter.decode('utf-8') for topic_filter in mqtt_packet.topics]
+            topic_filters = [topic_filter.decode(
+                'utf-8') for topic_filter in mqtt_packet.topics]
             self.packet_info['unsubscribe'] = {
                 'msgid': int(mqtt_packet.msgid),
                 'topic_filters': topic_filters,
