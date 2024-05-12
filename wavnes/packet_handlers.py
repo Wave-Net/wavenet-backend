@@ -6,36 +6,10 @@ from scapy.contrib.mqtt import *
 class PacketHandler(ABC):
     def __init__(self, packet):
         self.packet_info = {
-            'source_ip': self._get_source_ip(packet),
-            'destination_ip': self._get_destination_ip(packet),
+            'source_ip': packet[IP].src,
+            'destination_ip': packet[IP].dst,
             'length': len(packet),
         }
-
-    @staticmethod
-    def _get_source_ip(packet):
-        if IP in packet:
-            return packet[IP].src
-        elif IPv6 in packet:
-            return packet[IPv6].src
-        elif ARP in packet:
-            return packet[ARP].psrc
-        elif DHCP in packet:
-            return packet[DHCP].ciaddr
-        else:
-            return None
-
-    @staticmethod
-    def _get_destination_ip(packet):
-        if IP in packet:
-            return packet[IP].dst
-        elif IPv6 in packet:
-            return packet[IPv6].dst
-        elif ARP in packet:
-            return packet[ARP].pdst
-        elif DHCP in packet:
-            return packet[DHCP].siaddr
-        else:
-            return None
 
     @abstractmethod
     def process_packet(self, packet):
@@ -92,7 +66,8 @@ class MQTTHandler(PacketHandler):
                 'ackflag': int(mqtt_packet.sessPresentFlag),
             }
             if mqtt_packet.retcode is not None:
-                connack_info['return_code'] = str(RETURN_CODE.get(mqtt_packet.retcode))
+                connack_info['return_code'] = str(
+                    RETURN_CODE.get(mqtt_packet.retcode))
             self.packet_info['connack'] = connack_info
 
         elif packet_type == 'PUBLISH':
