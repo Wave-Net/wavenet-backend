@@ -6,12 +6,36 @@ from scapy.contrib.mqtt import *
 class PacketHandler(ABC):
     def __init__(self, packet):
         self.packet_info = {
-            'source_ip': str(packet[IP].src),
-            'destination_ip': str(packet[IP].dst),
-            'source_port': int(packet[TCP].sport),
-            'destination_port': int(packet[TCP].dport),
-            'length': int(packet.len)
+            'source_ip': self._get_source_ip(packet),
+            'destination_ip': self._get_destination_ip(packet),
+            'length': len(packet),
         }
+
+    @staticmethod
+    def _get_source_ip(packet):
+        if IP in packet:
+            return packet[IP].src
+        elif IPv6 in packet:
+            return packet[IPv6].src
+        elif ARP in packet:
+            return packet[ARP].psrc
+        elif DHCP in packet:
+            return packet[DHCP].ciaddr
+        else:
+            return None
+
+    @staticmethod
+    def _get_destination_ip(packet):
+        if IP in packet:
+            return packet[IP].dst
+        elif IPv6 in packet:
+            return packet[IPv6].dst
+        elif ARP in packet:
+            return packet[ARP].pdst
+        elif DHCP in packet:
+            return packet[DHCP].siaddr
+        else:
+            return None
 
     @abstractmethod
     def process_packet(self, packet):
