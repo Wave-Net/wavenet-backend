@@ -30,7 +30,7 @@ class MQTTHandler(PacketHandler):
         self.packet_info.update({
             'name': 'MQTT',
             'header': {
-                'msg_len': str(len(mqtt_packet)),
+                'msg_len': int(mqtt_packet.len),
                 'dup': str(mqtt_packet.DUP),
                 'qos': str(mqtt_packet.QOS),
                 'retain': str(mqtt_packet.RETAIN),
@@ -68,7 +68,7 @@ class MQTTHandler(PacketHandler):
                 'ackflag': int(mqtt_packet.sessPresentFlag),
             }
             if mqtt_packet.retcode is not None:
-                connack_info['return_code'] = int(mqtt_packet.retcode)
+                connack_info['return_code'] = str(RETURN_CODE.get(mqtt_packet.retcode))
             self.packet_info['connack'] = connack_info
 
         elif packet_type == 'PUBLISH':
@@ -100,7 +100,7 @@ class MQTTHandler(PacketHandler):
         elif packet_type == 'SUBACK':
             self.packet_info['suback'] = {
                 'msgid': int(mqtt_packet.msgid),
-                'return_code': int(mqtt_packet.retcode),
+                'return_code': str(RETURN_CODE.get(mqtt_packet.retcode)),
             }
 
         elif packet_type == 'UNSUBSCRIBE':
