@@ -17,8 +17,8 @@ def packet_time_info(start_time, previous_time, packet):
 class PacketHandler(ABC):
     def __init__(self, packet):
         self.packet_info = {
-            'source_ip': self._get_source_ip(packet),
-            'destination_ip': self._get_destination_ip(packet),
+            'src': self._get_source_ip(packet),
+            'dst': self._get_destination_ip(packet),
             'length': len(packet),
         }
 
@@ -33,7 +33,7 @@ class PacketHandler(ABC):
         elif DHCP in packet:
             return packet[DHCP].ciaddr
         else:
-            return None
+            return ''
 
     @staticmethod
     def _get_destination_ip(packet):
@@ -46,7 +46,7 @@ class PacketHandler(ABC):
         elif DHCP in packet:
             return packet[DHCP].siaddr
         else:
-            return None
+            return ''
 
     @abstractmethod
     def process_packet(self, packet):
