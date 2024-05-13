@@ -122,7 +122,7 @@ class Sniffer:
             self.is_running = True
 
         try:
-            sniff(prn=self._packet_callback, stop_filter=stop_filter)
+            sniff(prn=self._packet_callback, stop_filter=stop_filter, store=False)
         except Exception as e:
             print(f"Error in sniff: {e}")
         finally:
