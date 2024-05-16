@@ -1,109 +1,73 @@
-import json
-import asyncio
 import threading
+import queue
 from scapy.all import *
 from scapy.contrib.mqtt import *
 from wavnes.packet_handlers import MQTTHandler
 from wavnes.info import PacketStatInfo, PacketTimeInfo
 
 
+class IoT:
+    def __init__(self, mac, ip, hostname):
+        self.mac = mac
+        self.ip = ip
+        self.hostname = hostname
+
+
 class Sniffer:
-    def __init__(self, websocket):
-        self.is_running = False
-        self.websocket = websocket
-        self.target_ip = '137.135.83.217'
-        self.time_info = PacketTimeInfo()
-        self.stat_info = PacketStatInfo(self.target_ip)
-        self.handler = None
-        self.sniffer_thread = None
-        self.lock = threading.Lock()
-        self.packet_queue = queue.Queue()
+    def __init__(self, iot: IoT):
+        self.iot = iot
+        self.queue = queue.Queue()
+        self.thread = None
+        self.stop_event = threading.Event()
 
     def reset(self):
-        self.time_info.reset()
-        self.stat_info.reset()
-        self.handler = None
-        self.packet_info = {}
+        self.time_info = None
+        self.stat_info = None
 
-    def _set_packet_hadnler(self, packet):
+    def start(self):
+        self.time_info = PacketTimeInfo()
+        self.stat_info = PacketStatInfo(self.iot.ip)
+        self.thread = threading.Thread(target=self._sniff)
+        self.thread.start()
+
+    def stop(self):
+        if self.thread:
+            self.reset()
+            self.stop_event.set()
+            self.thread.join()
+            self.thread = None
+            self.stop_event.clear()
+
+    def _get_packet_handler(self, packet):
         if MQTT in packet:
-            self.handler = MQTTHandler(packet)
-            return
-        self.handler = None
+            return MQTTHandler(packet)
+        return None
+
+    def _update_stat_info(self, src, dst, data):
+        self.stat_info.update(src, dst, data)
+
+    def _make_packet_info(self, handler, packet):
+        self.time_info.update(packet)
+        handler.process_packet(packet)
+        packet_info = {'message_type': 'packet'}
+        packet_info.update(self.time_info.get_time_info())
+        packet_info.update(handler.get_packet_info())
+        return packet_info
 
     def _packet_callback(self, packet):
-        self._set_packet_hadnler(packet)
-        if self.handler == None:
+        handler = self._get_packet_handler(packet)
+        if handler is None:
             return
+        self._update_stat_info(
+            packet[IP].src, packet[IP].dst, packet[MQTT].len)
+        self.queue.put(self._make_packet_info(handler, packet))
 
-        print('Capture handling...')
-        self.time_info.update(packet)
-        self.handler.process_packet(packet)
-
-        packet_info = {}
-        packet_info.update(self.time_info.get_time_info())
-        packet_info.update(self.handler.get_packet_info())
-
-        self.stat_info.update(packet[IP].src, packet[IP].dst, packet[MQTT].len)
-
-        self.packet_queue.put(packet_info)
-
-    def _sniff_thread(self):
-        def stop_filter(packet):
-            with self.lock:
-                return not self.is_running
-
-        with self.lock:
-            self.is_running = True
-
-        try:
-            sniff(prn=self._packet_callback, stop_filter=stop_filter, store=False)
-        except Exception as e:
-            print(f"Error in sniff: {e}")
-        finally:
-            with self.lock:
-                self.is_running = False
-
-    async def start_sniff(self):
-        self.reset()
-
-        self.sniffer_thread = threading.Thread(target=self._sniff_thread)
-        self.sniffer_thread.start()
-
-        self.stat_task = asyncio.create_task(self.send_packet_statistics())
-        self.packet_task = asyncio.create_task(self.send_packets())
-
-    def stop_sniff(self):
-        if self.sniffer_thread and self.sniffer_thread.is_alive():
-            with self.lock:
-                self.is_running = False
-            self.sniffer_thread.join()
-
-        if self.stat_task:
-            self.stat_task.cancel()
-
-        if self.packet_task:
-            self.packet_task.cancel()
-
-    async def send_packet_statistics(self):
-        while True:
-            await asyncio.sleep(1)
-            with self.lock:
-                stat_data = {'message_type': 'stat'}
-                stat_data.update({
-                    'total_statistics': self.stat_info.get_total(),
-                    'statistics_delta': self.stat_info.get_delta()
-                })
-                await self.websocket.send(json.dumps(stat_data))
-
-    async def send_packets(self):
-        while True:
-            try:
-                packet_info = self.packet_queue.get_nowait()
-            except queue.Empty:
-                await asyncio.sleep(0.01)
-                continue
-
-            packet_data = {'message_type': 'packet'}
-            packet_data.update(packet_info)
-            await self.websocket.send(json.dumps(packet_data))
+    def _sniff(self):
+        filter_expr = f"ip and (ip src {self.iot.ip} or ip dst {self.iot.ip})"
+        while not self.stop_event.is_set():
+            packets = sniff(count=1, filter=filter_expr,
+                            timeout=0.1)
+            if self.stop_event.is_set():
+                break
+            for packet in packets:
+                self._packet_callback(packet)

@@ -16,7 +16,7 @@ class PacketHandler(ABC):
         pass
 
     @abstractmethod
-    def get_packet_info(self, packet):
+    def get_packet_info(self):
         pass
 
 
