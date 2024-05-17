@@ -92,11 +92,9 @@ class Sniffer:
         if MQTT in packet:
             print("find MQTT Packet")
             return MQTTHandler(packet)
-        elif IP in packet and CoAP in packet:
-            print("find MQTT Packet")
-            print(packet.summary())
-            return None
-            # return CoAPHandler(packet)
+        elif CoAP in packet:
+            # print(packet.summary())
+            return CoAPHandler(packet)
         return None
 
     def _sniff_thread(self):

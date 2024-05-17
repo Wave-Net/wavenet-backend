@@ -4,6 +4,7 @@ from scapy.all import *
 from scapy.contrib.mqtt import *
 from scapy.contrib.coap import *
 
+
 def packet_time_info(start_time, previous_time, packet):
     seconds_since_previous = float(packet.time - previous_time)
     return {
@@ -19,8 +20,6 @@ class PacketHandler(ABC):
         self.packet_info = {
             'source_ip': str(packet[IP].src),
             'destination_ip': str(packet[IP].dst),
-            'source_port': int(packet[TCP].sport),
-            'destination_port': int(packet[TCP].dport),
             'length': int(packet.len)
         }
 
@@ -106,6 +105,7 @@ class MQTTHandler(PacketHandler):
 
         return self.packet_info
 
+
 class CoAPHandler(PacketHandler):
     def process_packet(self, packet):
         coap_packet = packet[CoAP]
@@ -133,6 +133,7 @@ class CoAPHandler(PacketHandler):
 
         # Extracting payload if it exists
         if coap_packet.payload:
-            self.packet_info['payload'] = bytes(coap_packet.payload).decode('utf-8', errors='ignore')
+            self.packet_info['payload'] = bytes(
+                coap_packet.payload).decode('utf-8', errors='ignore')
 
         return self.packet_info
