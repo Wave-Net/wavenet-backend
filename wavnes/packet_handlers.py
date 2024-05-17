@@ -107,6 +107,16 @@ class MQTTHandler(PacketHandler):
 
 
 class CoAPHandler(PacketHandler):
+    CONTENT_FORMATS = {
+        0: "text/plain; charset=utf-8",
+        40: "application/link-format",
+        41: "application/xml",
+        42: "application/octet-stream",
+        47: "application/exi",
+        50: "application/json",
+        # 추가 포맷이 필요한 경우 여기에 추가할 수 있습니다.
+    }
+
     def process_packet(self, packet):
         coap_packet = packet[CoAP]
         self.packet_info.update({
@@ -120,17 +130,62 @@ class CoAPHandler(PacketHandler):
         })
 
         # Extracting options if they exist
-        if hasattr(packet, 'opt') and packet.opt.option_list():
-            print("Options:")
-            for opt in packet.opt.option_list():
-                print(f"  Number: {opt.number}, Value: {opt.value}")
-            else:
-                print("Options: None")
+        if coap_packet.options:
+            self.packet_info['options'] = []
+            for option in coap_packet.options:
+                try:
+                    option_number, option_value = option  # Unpacking the tuple
+
+                    # Check if the option is Content-Format and map its numeric value to a string
+                    if option_number == 12:  # Content-Format option number is 12
+                        option_value = self.CONTENT_FORMATS.get(option_value, "Unknown")
+                    elif isinstance(option_value, bytes):
+                        option_value = option_value.decode('utf-8', errors='ignore')
+
+                    self.packet_info['options'].append({
+                        'number': option_number,
+                        'value': option_value
+                    })
+                except Exception as e:
+                    self.packet_info['options'].append({
+                        'number': None,
+                        'value': f"Error decoding option: {e}"
+                    })
+        # if coap_packet.options:
+        #     self.packet_info['options'] = []
+        #     for opt in coap_packet.options:
+        #         try:
+        #             if len(opt) >= 2:
+        #                 option_number, option_value = opt[0], opt[1]
+        #                 # Check if the option is Content-Format and map its numeric value to a string
+        #                 print(f"option numebr is {option_number}")
+        #                 if option_number == 'Content-Format':  # Content-Format option number
+        #                     option_value = self.CONTENT_FORMATS.get(
+        #                         option_value, "Text")
+        #                 elif isinstance(option_value, bytes):
+        #                     option_value = option_value.decode(
+        #                         'utf-8', errors='ignore')
+
+        #                 self.packet_info['options'].append({
+        #                     'number': option_number,
+        #                     'value': option_value
+        #                 })
+        #             else:
+        #                 self.packet_info['options'].append({
+        #                     'number': None,
+        #                     'value': "Malformed option"
+        #                 })
+        #         except Exception as e:
+        #             self.packet_info['options'].append({
+        #                 'number': None,
+        #                 'value': f"Error decoding option: {e}"
+        #             })
 
         # Extracting payload if it exists
         if hasattr(coap_packet, 'payload') and coap_packet.payload:
             try:
-                self.packet_info['payload'] = bytes(coap_packet.payload).decode('utf-8', errors='ignore')
+                self.packet_info['payload'] = bytes(
+                    coap_packet.payload).decode('utf-8', errors='ignore')
             except Exception as e:
                 self.packet_info['payload'] = f"Cannot decode payload: {e}"
         else:

@@ -156,4 +156,5 @@ class Sniffer:
                 continue
 
             json_data = json.dumps(packet_info)
+            print("Sending packet data:", json.dumps(packet_info, indent=2))
             await self.websocket.send(json_data)
