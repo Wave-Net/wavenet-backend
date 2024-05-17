@@ -4,7 +4,7 @@ import json
 from wavnes.sniffer import Sniffer, IoT
 
 
-def _get_network_info(interface="en0"): # 테스트용 mac, ip, hostname
+def _get_network_info(interface="en0"):  # 테스트용 mac, ip, hostname
     try:
         output = subprocess.check_output(
             ["ifconfig", interface]).decode("utf-8")

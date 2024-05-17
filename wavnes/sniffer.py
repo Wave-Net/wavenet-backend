@@ -58,6 +58,7 @@ class Sniffer:
         handler = self._get_packet_handler(packet)
         if handler is None:
             return
+        print('handle')
         self._update_stat_info(
             packet[IP].src, packet[IP].dst, packet[MQTT].len)
         self.queue.put(self._make_packet_info(handler, packet))
@@ -65,9 +66,8 @@ class Sniffer:
     def _sniff(self):
         filter_expr = f"ip and (ip src {self.iot.ip} or ip dst {self.iot.ip})"
         while not self.stop_event.is_set():
-            packets = sniff(count=1, filter=filter_expr,
-                            timeout=0.1)
+            sniff(prn=self._packet_callback,
+                  filter=filter_expr,
+                  timeout=0.1, store=False)
             if self.stop_event.is_set():
                 break
-            for packet in packets:
-                self._packet_callback(packet)
