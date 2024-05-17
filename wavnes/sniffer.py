@@ -51,7 +51,7 @@ class Sniffer:
     def __init__(self, websocket=None, debug=False):
         self.debug = debug
         self.websocket = websocket
-        self.my_ip = '127.0.0.1'
+        self.my_ip = '137.135.83.217'
         self.start_time = None
         self.previous_time = 0.0
         self.sniffer_thread = None
@@ -90,7 +90,6 @@ class Sniffer:
 
     def _select_packet_handler(self, packet):
         if MQTT in packet:
-            print("find MQTT Packet")
             return MQTTHandler(packet)
         elif CoAP in packet:
             # print(packet.summary())
@@ -156,5 +155,4 @@ class Sniffer:
                 continue
 
             json_data = json.dumps(packet_info)
-            print("Sending packet data:", json.dumps(packet_info, indent=2))
             await self.websocket.send(json_data)
