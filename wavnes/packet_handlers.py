@@ -111,29 +111,29 @@ class CoAPHandler(PacketHandler):
         coap_packet = packet[CoAP]
         self.packet_info.update({
             'name': 'CoAP',
-            'version': int(coap_packet.version),
+            'version': int(coap_packet.ver),
             'type': int(coap_packet.type),
             'token_length': int(coap_packet.tkl),
             'code': int(coap_packet.code),
-            'message_id': int(coap_packet.mid),
+            'message_id': int(coap_packet.msg_id),
             'token': bytes(coap_packet.token).hex()
         })
 
         # Extracting options if they exist
-        options = []
-        for option in coap_packet.opt.option:
-            option_info = {
-                'number': option.otype,
-                'length': len(option.load),
-                'value': bytes(option.load).hex() if option.load is not None else None
-            }
-            options.append(option_info)
-        if options:
-            self.packet_info['options'] = options
+        if hasattr(packet, 'opt') and packet.opt.option_list():
+            print("Options:")
+            for opt in packet.opt.option_list():
+                print(f"  Number: {opt.number}, Value: {opt.value}")
+            else:
+                print("Options: None")
 
         # Extracting payload if it exists
-        if coap_packet.payload:
-            self.packet_info['payload'] = bytes(
-                coap_packet.payload).decode('utf-8', errors='ignore')
+        if hasattr(coap_packet, 'payload') and coap_packet.payload:
+            try:
+                self.packet_info['payload'] = bytes(coap_packet.payload).decode('utf-8', errors='ignore')
+            except Exception as e:
+                self.packet_info['payload'] = f"Cannot decode payload: {e}"
+        else:
+            self.packet_info['payload'] = "None"
 
         return self.packet_info
