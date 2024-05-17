@@ -1,5 +1,6 @@
 import websockets
-import subprocess
+import subprocess  # 테스트용
+import asyncio
 import json
 from wavnes.sniffer import Sniffer, IoT
 
@@ -29,8 +30,13 @@ async def _websocket_handler(websocket, path):
     print(f"Client connected from {client_addr}")
 
     mac, ip, hostname = _get_network_info()
+    if not all([mac, ip, hostname]):
+        print("네트워크 정보를 가져올 수 없어 종료합니다.")
+        return
+
     iot = IoT(mac, ip, hostname)
     sniffer = Sniffer(iot)
+    loop = asyncio.get_running_loop()
 
     try:
         async for message in websocket:
@@ -38,8 +44,7 @@ async def _websocket_handler(websocket, path):
             data = json.loads(message)
             if data.get("type") == "start_capture":
                 print("Starting packet capture...")
-                sniffer.start()
-
+                sniffer.start(websocket, loop)
             elif data.get("type") == "stop_capture":
                 print("Stopping packet capture...")
                 sniffer.stop()
@@ -48,6 +53,8 @@ async def _websocket_handler(websocket, path):
         pass
     except websockets.exceptions.ConnectionClosedError:
         print("Client closed the connection.")
+    finally:
+        sniffer.stop()
 
 
 async def start_server(host, port):
