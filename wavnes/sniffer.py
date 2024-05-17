@@ -34,7 +34,6 @@ class Sniffer:
 
     def stop(self):
         if self.thread:
-            self.reset()
             self.stop_event.set()
             self.thread.join()
             self.thread = None
@@ -78,5 +77,3 @@ class Sniffer:
             sniff(prn=lambda packet: self._packet_callback(packet, websocket, loop),
                   filter=filter_expr,
                   timeout=0.1, store=False)
-            if self.stop_event.is_set():
-                break
