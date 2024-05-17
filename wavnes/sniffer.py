@@ -76,4 +76,4 @@ class Sniffer:
         while not self.stop_event.is_set():
             sniff(prn=lambda packet: self._packet_callback(packet, websocket, loop),
                   filter=filter_expr,
-                  timeout=0.1, store=False)
+                  timeout=1, store=False)
