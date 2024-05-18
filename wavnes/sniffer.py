@@ -1,158 +1,75 @@
-import json
-import asyncio
 import threading
-import time
+import asyncio
+import json
 from scapy.all import *
-from scapy.layers.inet import IP
 from scapy.contrib.mqtt import *
 from scapy.contrib.coap import *
-from wavnes.packet_handlers import MQTTHandler, CoAPHandler, packet_time_info
+from wavnes.packet_handlers import get_packet_handler
+from wavnes.info import PacketStatInfo, PacketTimeInfo
 
 
-class SnifferStatistics:
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.send_pkt = 0
-        self.recv_pkt = 0
-        self.send_data = 0
-        self.recv_data = 0
-
-    def update(self, packet_info, my_ip):
-        if packet_info.get('source_ip') == my_ip:
-            self.send_pkt += 1
-            self.send_data += packet_info.get('length', 0)
-        elif packet_info.get('destination_ip') == my_ip:
-            self.recv_pkt += 1
-            self.recv_data += packet_info.get('length', 0)
-
-    def get_delta(self, previous_statics):
-        if previous_statics is None:
-            return self.get_total()
-
-        return {
-            'send_pkt': self.send_pkt - previous_statics.send_pkt,
-            'recv_pkt': self.recv_pkt - previous_statics.recv_pkt,
-            'send_data': self.send_data - previous_statics.send_data,
-            'recv_data': self.recv_data - previous_statics.recv_data,
-        }
-
-    def get_total(self):
-        return {
-            'send_pkt': self.send_pkt,
-            'recv_pkt': self.recv_pkt,
-            'send_data': self.send_data,
-            'recv_data': self.recv_data,
-        }
+class IoT:
+    def __init__(self, mac, ip, hostname):
+        self.mac = mac
+        self.ip = ip
+        self.hostname = hostname
 
 
 class Sniffer:
-    def __init__(self, websocket=None, debug=False):
-        self.debug = debug
-        self.websocket = websocket
-        self.my_ip = '137.135.83.217'
-        self.start_time = None
-        self.previous_time = 0.0
-        self.sniffer_thread = None
-        self.lock = threading.Lock()
-        self.is_running = False
-        self.statics = SnifferStatistics()
-        self.packet_queue = queue.Queue()
-        self.index = 0
+    def __init__(self, iot: IoT):
+        self.iot = iot
+        self.thread = None
+        self.time_info = None
+        self.stat_info = None
+        self.stop_event = threading.Event()
 
-    def _init_data(self):
-        self.start_time = time.time()
-        self.statics.reset()
-        self.index = 0
+    def reset(self):
+        self.time_info = PacketTimeInfo()
+        self.stat_info = PacketStatInfo(self.iot.ip)
 
-    def _update_index(self):
-        self.index += 1
+    def start(self, websocket, loop):
+        self.reset()
+        self.thread = threading.Thread(
+            target=self._sniff, args=(websocket, loop))
+        self.thread.start()
 
-    def _packet_callback(self, packet):
-        handler = self._select_packet_handler(packet)
+    def stop(self):
+        if self.thread:
+            self.stop_event.set()
+            self.thread.join()
+            self.thread = None
+            self.stop_event.clear()
+
+    def _update_stat_info(self, src, dst, data):
+        self.stat_info.update(src, dst, data)
+
+    def _make_packet_info(self, handler, packet):
+        self.time_info.update(packet)
+        handler.process_packet(packet)
+        packet_info = {'message_type': 'packet'}
+        packet_info.update(self.time_info.get_time_info())
+        packet_info.update(handler.get_packet_info())
+        return packet_info
+
+    def _send_packet_info(self, packet_info, websocket, loop):
+        try:
+            asyncio.run_coroutine_threadsafe(
+                websocket.send(json.dumps(packet_info)), loop)
+        except Exception as e:
+            print(f"Error sending packet info: {e}")
+
+    def _packet_callback(self, packet, websocket, loop):
+        handler = get_packet_handler(packet)
         if handler is None:
             return
+        self._update_stat_info(
+            handler.src, handler.dst, handler.packet.len)
+        packet_info = self._make_packet_info(handler, packet)
+        self._send_packet_info(packet_info, websocket, loop)
 
-        if self.debug:
-            print(json.dumps(handler.process_packet(packet), indent=2))
-            return
-
-        print('Capture handling...')
-        packet_info = {'index': self.index}
-        packet_info.update(handler.process_packet(packet))
-        packet_info.update(packet_time_info(
-            self.start_time, self.previous_time, packet))
-        self.statics.update(packet_info, self.my_ip)
-        self._update_index()
-
-        self.packet_queue.put(packet_info)
-
-    def _select_packet_handler(self, packet):
-        if MQTT in packet:
-            return MQTTHandler(packet)
-        elif CoAP in packet:
-            # print(packet.summary())
-            return CoAPHandler(packet)
-        return None
-
-    def _sniff_thread(self):
-        def stop_filter(packet):
-            with self.lock:
-                return not self.is_running
-
-        with self.lock:
-            self.is_running = True
-
-        try:
-            sniff(prn=self._packet_callback, stop_filter=stop_filter, store=0)
-        except Exception as e:
-            print(f"Error in sniff: {e}")
-        finally:
-            with self.lock:
-                self.is_running = False
-
-    async def start_sniff(self):
-        self._init_data()
-
-        if self.debug:
-            sniff(prn=self._packet_callback, store=0)
-            return
-
-        self.sniffer_thread = threading.Thread(target=self._sniff_thread)
-        self.sniffer_thread.start()
-
-        self.previous_statics = self.statics
-        self.statics_task = asyncio.create_task(self.send_packet_statics())
-        self.packet_task = asyncio.create_task(self.send_packets())
-
-    def stop_sniff(self):
-        if self.sniffer_thread and self.sniffer_thread.is_alive():
-            with self.lock:
-                self.is_running = False
-            self.sniffer_thread.join()
-
-        if self.statics_task:
-            self.statics_task.cancel()
-
-    async def send_packet_statics(self):
-        while True:
-            await asyncio.sleep(1)
-            with self.lock:
-                statics_delta = self.statics.get_delta(self.previous_statics)
-                self.previous_statics = self.statics
-                await self.websocket.send(json.dumps({
-                    'total_statics': self.statics.get_total(),
-                    'statics_delta': statics_delta
-                }))
-
-    async def send_packets(self):
-        while True:
-            try:
-                packet_info = self.packet_queue.get_nowait()
-            except queue.Empty:
-                await asyncio.sleep(0.01)
-                continue
-
-            json_data = json.dumps(packet_info)
-            await self.websocket.send(json_data)
+    def _sniff(self, websocket, loop):
+        filter_expr = f"ip and (ip src {self.iot.ip} or ip dst {self.iot.ip})"
+        while not self.stop_event.is_set():
+            sniff(prn=lambda packet: self._packet_callback(packet, websocket, loop),
+                  filter=filter_expr,
+                  timeout=1, store=False)

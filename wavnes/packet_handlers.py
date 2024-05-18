@@ -1,109 +1,156 @@
 from abc import ABC, abstractmethod
-import time
 from scapy.all import *
 from scapy.contrib.mqtt import *
 from scapy.contrib.coap import *
 
 
-def packet_time_info(start_time, previous_time, packet):
-    seconds_since_previous = float(packet.time - previous_time)
-    return {
-        'timestamp': '{:.6f}'.format(packet.time),
-        'time_of_day': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(packet.time)),
-        'seconds_since_beginning': '{:.6f}'.format(float(packet.time - start_time)),
-        'seconds_since_previous': '{:.6f}'.format(seconds_since_previous),
-    }
+def get_packet_src(packet):
+    if IP in packet:
+        return packet[IP].src
+    elif IPv6 in packet:
+        return packet[IPv6].src
+    elif ARP in packet:
+        return packet[ARP].psrc
+    elif DHCP in packet:
+        return packet[DHCP].ciaddr
+    else:
+        return ''
+
+
+def get_packet_dst(packet):
+    if IP in packet:
+        return packet[IP].dst
+    elif IPv6 in packet:
+        return packet[IPv6].dst
+    elif ARP in packet:
+        return packet[ARP].pdst
+    elif DHCP in packet:
+        return packet[DHCP].siaddr
+    else:
+        return ''
+
+
+def get_packet_handler(packet):
+    if MQTT in packet:
+        return MQTTHandler(packet)
+    if CoAP in packet:
+        return CoAPHandler(packet)
+    return None
 
 
 class PacketHandler(ABC):
     def __init__(self, packet):
+        self.packet = packet
+        self.src = get_packet_src(packet)
+        self.dst = get_packet_dst(packet)
         self.packet_info = {
-            'source_ip': str(packet[IP].src),
-            'destination_ip': str(packet[IP].dst),
-            'length': int(packet.len)
+            'source_ip': self.src,
+            'destination_ip': self.dst,
+            'length': len(packet),
         }
 
     @abstractmethod
     def process_packet(self, packet):
         pass
 
+    def get_packet_info(self):
+        return self.packet_info
+
 
 class MQTTHandler(PacketHandler):
     def process_packet(self, packet):
-        mqtt_packet = packet[MQTT]
-        packet_type = CONTROL_PACKET_TYPE.get(mqtt_packet.type, 'Unknown')
+        self.packet = packet[MQTT]
+        packet_type = CONTROL_PACKET_TYPE.get(self.packet.type, 'Unknown')
 
         self.packet_info.update({
             'name': 'MQTT',
             'header': {
-                'msg_len': len(mqtt_packet),
-                'dup': int(mqtt_packet.DUP),
-                'qos': int(mqtt_packet.QOS),
-                'retain': int(mqtt_packet.RETAIN),
+                'msg_len': int(self.packet.len),
+                'dup': str(self.packet.DUP),
+                'qos': str(self.packet.QOS),
+                'retain': str(self.packet.RETAIN),
             },
             'type': packet_type,
         })
 
         if packet_type == 'CONNECT':
-            self.packet_info['connect'] = {
-                'proto_name': str(mqtt_packet.protoname),
-                'mqtt_level': str(PROTOCOL_LEVEL.get(mqtt_packet.protolevel, "Unknown")),
-                'usernameflag': int(mqtt_packet.usernameflag),
-                'passwordflag': int(mqtt_packet.passwordflag),
-                'willretainflag': int(mqtt_packet.willretainflag),
-                'willQOSflag': int(mqtt_packet.willQOSflag),
-                'willflag': int(mqtt_packet.willflag),
-                'cleansession': int(mqtt_packet.cleansess),
-                'reserved': int(mqtt_packet.reserved),
-                'keep_alive': int(mqtt_packet.klive),
-                'clientId': str(mqtt_packet.clientId),
+            connect_info = {
+                'proto_name': str(self.packet.protoname),
+                'mqtt_level': str(PROTOCOL_LEVEL.get(self.packet.protolevel, "Unknown")),
+                'usernameflag': int(self.packet.usernameflag),
+                'passwordflag': int(self.packet.passwordflag),
+                'willretainflag': int(self.packet.willretainflag),
+                'willQOSflag': int(self.packet.willQOSflag),
+                'willflag': int(self.packet.willflag),
+                'cleansession': int(self.packet.cleansess),
+                'reserved': int(self.packet.reserved),
+                'clientId': str(self.packet.clientId),
             }
-            if mqtt_packet.willflag:
-                self.packet_info['connect']['willtopic'] = str(
-                    mqtt_packet.willtopic)
-                self.packet_info['connect']['willmsg'] = str(
-                    mqtt_packet.willmsg)
-            if mqtt_packet.usernameflag:
-                self.packet_info['connect']['username'] = str(
-                    mqtt_packet.username)
-            if mqtt_packet.passwordflag:
-                self.packet_info['connect']['password'] = str(
-                    mqtt_packet.password)
+            if self.packet.klive is not None:
+                connect_info['keep_alive'] = int(self.packet.klive)
+            if self.packet.willflag and self.packet.willtopic:
+                connect_info['willtopic'] = str(self.packet.willtopic)
+            if self.packet.willflag and self.packet.willmsg:
+                connect_info['willmsg'] = str(self.packet.willmsg)
+            if self.packet.usernameflag and self.packet.username:
+                connect_info['username'] = str(self.packet.username)
+            if self.packet.passwordflag and self.packet.password:
+                connect_info['password'] = str(self.packet.password)
+            self.packet_info['connect'] = connect_info
 
         elif packet_type == 'CONNACK':
-            self.packet_info['connack'] = {
-                'ackflag': int(mqtt_packet.sessPresentFlag),
-                'return_code': str(mqtt_packet.retcode),
+            connack_info = {
+                'ackflag': int(self.packet.sessPresentFlag),
             }
+            if self.packet.retcode is not None:
+                connack_info['return_code'] = str(
+                    RETURN_CODE.get(self.packet.retcode))
+            self.packet_info['connack'] = connack_info
 
         elif packet_type == 'PUBLISH':
-            self.packet_info['publish'] = {
-                'topic': str(mqtt_packet.topic),
-                'msgid': str(mqtt_packet.msgid),
-                'msgvalue': str(mqtt_packet.value),
+            publish_info = {
+                'topic': str(self.packet.topic),
+                'msgvalue': str(self.packet.value),
+            }
+            if self.packet.msgid is not None:
+                publish_info['msgid'] = int(self.packet.msgid)
+            self.packet_info['publish'] = publish_info
+
+        elif packet_type in ['PUBACK', 'PUBREC', 'PUBREL', 'PUBCOMP']:
+            self.packet_info[packet_type.lower()] = {
+                'msgid': int(self.packet.msgid),
             }
 
-        elif packet_type == 'PUBACK':
-            self.packet_info['puback'] = {
-                'msgid': str(mqtt_packet.msgid),
+        elif packet_type == 'SUBSCRIBE':
+            topic_filters = []
+            for topic_filter in self.packet.topics:
+                topic_filters.append({
+                    'topic': topic_filter.topic.decode('utf-8'),
+                    'qos': topic_filter.QOS,
+                })
+            self.packet_info['subscribe'] = {
+                'msgid': int(self.packet.msgid),
+                'topic_filters': topic_filters,
             }
 
-        elif packet_type == 'PUBREC':
-            self.packet_info['pubrec'] = {
-                'msgid': str(mqtt_packet.msgid),
+        elif packet_type == 'SUBACK':
+            self.packet_info['suback'] = {
+                'msgid': int(self.packet.msgid),
+                'return_code': str(RETURN_CODE.get(self.packet.retcode)),
             }
 
-        elif packet_type == 'PUBREL':
-            self.packet_info['pubrel'] = {
-                'msgid': str(mqtt_packet.msgid),
+        elif packet_type == 'UNSUBSCRIBE':
+            topic_filters = [topic_filter.decode(
+                'utf-8') for topic_filter in self.packet.topics]
+            self.packet_info['unsubscribe'] = {
+                'msgid': int(self.packet.msgid),
+                'topic_filters': topic_filters,
             }
 
-        elif packet_type == 'PUBCOMP':
-            self.packet_info['pubcomp'] = {
-                'msgid': str(mqtt_packet.msgid),
+        elif packet_type == 'UNSUBACK':
+            self.packet_info['unsuback'] = {
+                'msgid': int(self.packet.msgid),
             }
-
-        return self.packet_info
 
 
 class CoAPHandler(PacketHandler):
@@ -118,29 +165,29 @@ class CoAPHandler(PacketHandler):
     }
 
     def process_packet(self, packet):
-        coap_packet = packet[CoAP]
+        self.packet = packet[CoAP]
         self.packet_info.update({
             'name': 'CoAP',
-            'version': int(coap_packet.ver),
-            'type': int(coap_packet.type),
-            'token_length': int(coap_packet.tkl),
-            'code': int(coap_packet.code),
-            'message_id': int(coap_packet.msg_id),
-            'token': bytes(coap_packet.token).hex()
+            'version': int(self.packet.ver),
+            'type': int(self.packet.type),
+            'token_length': int(self.packet.tkl),
+            'code': int(self.packet.code),
+            'message_id': int(self.packet.msg_id),
+            'token': bytes(self.packet.token).hex()
         })
 
-        # Extracting options if they exist
-        if coap_packet.options:
+        if self.packet.options:
             self.packet_info['options'] = []
-            for option in coap_packet.options:
+            for option in self.packet.options:
                 try:
-                    option_number, option_value = option  # Unpacking the tuple
+                    option_number, option_value = option
 
-                    # Check if the option is Content-Format and map its numeric value to a string
-                    if option_number == 12:  # Content-Format option number is 12
-                        option_value = self.CONTENT_FORMATS.get(option_value, "Unknown")
+                    if option_number == 12:
+                        option_value = self.CONTENT_FORMATS.get(
+                            option_value, "Unknown")
                     elif isinstance(option_value, bytes):
-                        option_value = option_value.decode('utf-8', errors='ignore')
+                        option_value = option_value.decode(
+                            'utf-8', errors='ignore')
 
                     self.packet_info['options'].append({
                         'number': option_number,
@@ -152,14 +199,11 @@ class CoAPHandler(PacketHandler):
                         'value': f"Error decoding option: {e}"
                     })
 
-        # Extracting payload if it exists
-        if hasattr(coap_packet, 'payload') and coap_packet.payload:
+        if hasattr(self.packet, 'payload') and self.packet.payload:
             try:
                 self.packet_info['payload'] = bytes(
-                    coap_packet.payload).decode('utf-8', errors='ignore')
+                    self.packet.payload).decode('utf-8', errors='ignore')
             except Exception as e:
                 self.packet_info['payload'] = f"Cannot decode payload: {e}"
         else:
             self.packet_info['payload'] = "None"
-
-        return self.packet_info
