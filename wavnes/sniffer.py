@@ -63,7 +63,7 @@ class Sniffer:
         if handler is None:
             return
         self._update_stat_info(
-            packet[IP].src, packet[IP].dst, packet[MQTT].len)
+            handler.src, handler.dst, handler.packet.len)
         packet_info = self._make_packet_info(handler, packet)
         self._send_packet_info(packet_info, websocket, loop)
 
