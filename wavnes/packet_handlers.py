@@ -1,6 +1,15 @@
 from abc import ABC, abstractmethod
 from scapy.all import *
 from scapy.contrib.mqtt import *
+from scapy.contrib.coap import *
+
+
+def get_packet_handler(packet):
+    if MQTT in packet:
+        return MQTTHandler(packet)
+    if CoAP in packet:
+        return CoAPHandler(packet)
+    return None
 
 
 class PacketHandler(ABC):
@@ -15,9 +24,8 @@ class PacketHandler(ABC):
     def process_packet(self, packet):
         pass
 
-    @abstractmethod
     def get_packet_info(self):
-        pass
+        return self.packet_info
 
 
 class MQTTHandler(PacketHandler):
@@ -115,5 +123,58 @@ class MQTTHandler(PacketHandler):
                 'msgid': int(mqtt_packet.msgid),
             }
 
-    def get_packet_info(self):
-        return self.packet_info
+
+class CoAPHandler(PacketHandler):
+    CONTENT_FORMATS = {
+        0: "text/plain; charset=utf-8",
+        40: "application/link-format",
+        41: "application/xml",
+        42: "application/octet-stream",
+        47: "application/exi",
+        50: "application/json",
+        # 추가 포맷이 필요한 경우 여기에 추가할 수 있습니다.
+    }
+
+    def process_packet(self, packet):
+        coap_packet = packet[CoAP]
+        self.packet_info.update({
+            'name': 'CoAP',
+            'version': int(coap_packet.ver),
+            'type': int(coap_packet.type),
+            'token_length': int(coap_packet.tkl),
+            'code': int(coap_packet.code),
+            'message_id': int(coap_packet.msg_id),
+            'token': bytes(coap_packet.token).hex()
+        })
+
+        if coap_packet.options:
+            self.packet_info['options'] = []
+            for option in coap_packet.options:
+                try:
+                    option_number, option_value = option
+
+                    if option_number == 12:
+                        option_value = self.CONTENT_FORMATS.get(
+                            option_value, "Unknown")
+                    elif isinstance(option_value, bytes):
+                        option_value = option_value.decode(
+                            'utf-8', errors='ignore')
+
+                    self.packet_info['options'].append({
+                        'number': option_number,
+                        'value': option_value
+                    })
+                except Exception as e:
+                    self.packet_info['options'].append({
+                        'number': None,
+                        'value': f"Error decoding option: {e}"
+                    })
+
+        if hasattr(coap_packet, 'payload') and coap_packet.payload:
+            try:
+                self.packet_info['payload'] = bytes(
+                    coap_packet.payload).decode('utf-8', errors='ignore')
+            except Exception as e:
+                self.packet_info['payload'] = f"Cannot decode payload: {e}"
+        else:
+            self.packet_info['payload'] = "None"

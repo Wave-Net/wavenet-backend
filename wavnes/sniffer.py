@@ -3,7 +3,8 @@ import asyncio
 import json
 from scapy.all import *
 from scapy.contrib.mqtt import *
-from wavnes.packet_handlers import MQTTHandler
+from scapy.contrib.coap import *
+from wavnes.packet_handlers import get_packet_handler
 from wavnes.info import PacketStatInfo, PacketTimeInfo
 
 
@@ -39,11 +40,6 @@ class Sniffer:
             self.thread = None
             self.stop_event.clear()
 
-    def _get_packet_handler(self, packet):
-        if MQTT in packet:
-            return MQTTHandler(packet)
-        return None
-
     def _update_stat_info(self, src, dst, data):
         self.stat_info.update(src, dst, data)
 
@@ -63,7 +59,7 @@ class Sniffer:
             print(f"Error sending packet info: {e}")
 
     def _packet_callback(self, packet, websocket, loop):
-        handler = self._get_packet_handler(packet)
+        handler = get_packet_handler(packet)
         if handler is None:
             return
         self._update_stat_info(
