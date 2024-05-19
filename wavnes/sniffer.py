@@ -21,7 +21,7 @@ class Sniffer(threading.Thread):
         self.device.stat_info.reset()
         self.time_info.reset()
 
-    def start(self):
+    def run(self):
         self.reset()
         filter_expr = f"ip and (ip src {self.device.ip} or ip dst {self.device.ip})"
         while not self.stop_event.is_set():
@@ -31,6 +31,7 @@ class Sniffer(threading.Thread):
 
     def stop(self):
         self.stop_event.set()
+        self.join()
 
     def _update_stat_info(self, src, dst, data):
         self.device.stat_info.update(src, dst, data)
