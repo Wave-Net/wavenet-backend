@@ -24,6 +24,7 @@ class PacketStatsMonitor:
     async def _monitoring_loop(self):
         while True:
             devices = self.network_monitor.get_devices()
+            self.network_monitor.start_sniffers()
             try:
                 await self.send_device_stats(devices)
             except Exception as e:
