@@ -1,5 +1,4 @@
-from wavnes.main import main
+import uvicorn
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    uvicorn.run("wavnes.main:app", host="0.0.0.0", port=8000, reload=True)
