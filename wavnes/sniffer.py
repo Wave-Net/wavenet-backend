@@ -4,44 +4,26 @@ from scapy.all import *
 from scapy.contrib.mqtt import *
 from scapy.contrib.coap import *
 from wavnes.packet_handlers import get_packet_handler
-from wavnes.info import PacketStatInfo, PacketTimeInfo
-
-
-class Device:
-    def __init__(self, mac, ip, hostname):
-        self.mac = mac
-        self.ip = ip
-        self.hostname = hostname
-        self.stat_info = PacketStatInfo(ip)
-
-    def get_device_info(self):
-        return {
-            'mac': self.mac,
-            'ip': self.ip,
-            'hostname': self.hostname,
-            'stat_info': self.stat_info.get_total()
-        }
-
-    def update_packet_stats(self, src, dst, data):
-        self.stat_info.update(src, dst, data)
+from wavnes.info import PacketTimeInfo
 
 
 class Sniffer(threading.Thread):
-    def __init__(self, device: Device, websocket, loop):
+    def __init__(self, device):
         super().__init__()
         self.device = device
-        self.websocket = websocket
-        self.loop = loop
+        self.websocket = None
+        self.loop = None
         self.time_info = PacketTimeInfo()
+        self.packet_send_event = threading.Event()
         self.stop_event = threading.Event()
 
     def reset(self):
         self.device.stat_info.reset()
         self.time_info.reset()
 
-    def run(self):
+    def start(self):
         self.reset()
-        filter_expr = f"ip and (ip src {self.iot.ip} or ip dst {self.iot.ip})"
+        filter_expr = f"ip and (ip src {self.device.ip} or ip dst {self.device.ip})"
         while not self.stop_event.is_set():
             sniff(prn=lambda packet: self._packet_callback(packet),
                   filter=filter_expr,
@@ -51,7 +33,7 @@ class Sniffer(threading.Thread):
         self.stop_event.set()
 
     def _update_stat_info(self, src, dst, data):
-        self.stat_info.update(src, dst, data)
+        self.device.stat_info.update(src, dst, data)
 
     def _make_packet_info(self, handler, packet):
         self.time_info.update(packet)
@@ -73,6 +55,17 @@ class Sniffer(threading.Thread):
             return
         self._update_stat_info(
             handler.src, handler.dst, handler.packet.len)
-        packet_info = self._make_packet_info(handler, packet)
-        asyncio.run_coroutine_threadsafe(self._send_packet_info(
-            packet_info, self.websocket), self.loop)
+        if self.packet_send_event.is_set():
+            packet_info = self._make_packet_info(handler, packet)
+            asyncio.run_coroutine_threadsafe(self._send_packet_info(
+                packet_info, self.websocket), self.loop)
+
+    def start_packet_send(self, websocket, loop):
+        self.websocket = websocket
+        self.loop = loop
+        self.packet_send_event.set()
+
+    def stop_packet_send(self):
+        self.packet_send_event.clear()
+        self.websocket = None
+        self.loop = None
