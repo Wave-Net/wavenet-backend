@@ -19,7 +19,7 @@ class Device:
         }
 
     def is_alive(self):
-        self.sniffer.is_alive()
+        return self.sniffer.is_alive()
 
     def start_sniffer(self):
         self.sniffer.start()
