@@ -8,7 +8,7 @@ class NetworkMonitor:
         self.interface = interface
         self.devices = {}
 
-    def _get_device(self, ip):
+    def get_device_by_ip(self, ip):
         if ip in self.devices:
             return self.devices[ip]
         else:
