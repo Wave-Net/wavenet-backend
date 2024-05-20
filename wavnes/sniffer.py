@@ -5,10 +5,10 @@ from scapy.contrib.mqtt import *
 from scapy.contrib.coap import *
 from wavnes.packet_handlers import get_packet_handler
 from wavnes.info import PacketTimeInfo
-
+from scapy.utils import wrpcap
 
 class Sniffer(threading.Thread):
-    def __init__(self, device):
+    def __init__(self, device, pcap_file="capture.pcap"):
         super().__init__()
         self.device = device
         self.websocket = None
@@ -17,6 +17,9 @@ class Sniffer(threading.Thread):
         self.packet_send_event = threading.Event()
         self.stop_event = threading.Event()
 
+        # 패킷 저장
+        self.pcap_file = pcap_file
+        self.packets = []
     def reset_time_info(self):
         self.time_info.reset()
 
@@ -28,6 +31,10 @@ class Sniffer(threading.Thread):
                   timeout=1, store=False)
 
     def stop(self):
+        # 종료시 나머지 패킷 저장
+        if self.packets:
+            wrpcap(self.pcap_file, self.packets, append=True)
+
         self.stop_event.set()
         self.join()
 
@@ -58,6 +65,11 @@ class Sniffer(threading.Thread):
             packet_info = self._make_packet_info(handler, packet)
             asyncio.run_coroutine_threadsafe(self._send_packet_info(
                 packet_info, self.websocket), self.loop)
+        ##
+        self.packets.append(packet)
+        if len(self.packets) >= 100:  # 100개마다 저장
+            wrpcap(self.pcap_file, self.packets, append=True)
+            self.packets = []
 
     def start_packet_send(self, websocket, loop):
         self.websocket = websocket

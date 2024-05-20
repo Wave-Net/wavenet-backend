@@ -4,6 +4,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from wavnes.network_monitor import NetworkMonitor
 from wavnes.packet_stats_monitor import PacketStatsMonitor
 from wavnes.packet_capturer import PacketCapturer
+from fastapi.responses import FileResponse
 
 app = FastAPI()
 
@@ -42,3 +43,7 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         packet_capturer.stop()
         await stats_monitor.stop()
+@app.get("/download-pcap")
+def download_pcap():
+    pcap_path = "capture.pcap"
+    return FileResponse(pcap_path, media_type='application/vnd.tcpdump.pcap', filename=pcap_path)
