@@ -38,3 +38,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except Exception as e:
         print(f"Error: {e}")
+
+    finally:
+        packet_capturer.stop()
+        await stats_monitor.stop()

@@ -15,4 +15,5 @@ class PacketCapturer:
     def stop(self):
         if self.selected_device:
             self.selected_device.sniffer.stop_packet_send()
+            self.selected_device.sniffer.reset_time_info()
             self.selected_device = None

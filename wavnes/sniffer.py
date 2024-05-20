@@ -17,12 +17,10 @@ class Sniffer(threading.Thread):
         self.packet_send_event = threading.Event()
         self.stop_event = threading.Event()
 
-    def reset(self):
-        self.device.stat_info.reset()
+    def reset_time_info(self):
         self.time_info.reset()
 
     def run(self):
-        self.reset()
         filter_expr = f"ip and (ip src {self.device.ip} or ip dst {self.device.ip})"
         while not self.stop_event.is_set():
             sniff(prn=lambda packet: self._packet_callback(packet),
