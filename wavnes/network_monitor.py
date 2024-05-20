@@ -8,53 +8,48 @@ class NetworkMonitor:
         self.interface = interface
         self.devices = {}
 
-    def _get_device(self, mac):
-        if mac in self.devices:
-            return self.devices[mac]
+    def _get_device(self, ip):
+        if ip in self.devices:
+            return self.devices[ip]
         else:
             return None
 
+    def reset(self):
+        for device in self.devices.values():
+            device.stop_sniffer()
+        self.devices = {}
+
     def _add_device(self, ip):
-        mac = netifaces.ifaddresses(self.interface)[
-            netifaces.AF_LINK][0]['addr']
         try:
+            mac = self._get_mac_by_ip(ip)
             hostname = socket.gethostbyaddr(ip)[0]
         except:
+            mac = 'Unknown'
             hostname = 'Unknown'
 
-        if mac not in self.devices:
+        if ip not in self.devices:
             device = Device(mac, ip, hostname)
-            self.devices[mac] = device
+            device.start_sniffer()
+            self.devices[ip] = device
 
-    def _remove_device(self, mac):
-        device = self._get_device(mac)
+    def _remove_device(self, ip):
+        device = self._get_device(ip)
         if device:
             device.stop_sniffer()
-            del self.devices[mac]
+            del self.devices[ip]
 
     def update_devices(self):
+        current_ips = set()
         for addr in netifaces.ifaddresses(self.interface)[netifaces.AF_INET]:
             ip = addr['addr']
-            mac = netifaces.ifaddresses(self.interface)[
-                netifaces.AF_LINK][0]['addr']
-            if mac not in self.devices:
+            current_ips.add(ip)
+            if ip not in self.devices:
                 self._add_device(ip)
 
-        for mac in list(self.devices.keys()):
-            device = self.devices[mac]
-            if device.ip not in [addr['addr'] for addr in netifaces.ifaddresses(self.interface)[netifaces.AF_INET]]:
-                self._remove_device(mac)
+        for ip in list(self.devices.keys()):
+            if ip not in current_ips:
+                self._remove_device(ip)
 
     def get_devices(self):
         self.update_devices()
         return list(self.devices.values())
-
-    def start_sniffers(self):
-        for device in self.devices.values():
-            if not device.is_alive():
-                device.start_sniffer()
-
-    def stop_sniffers(self):
-        for device in self.devices.values():
-            if device.is_alive():
-                device.stop_sniffer()
