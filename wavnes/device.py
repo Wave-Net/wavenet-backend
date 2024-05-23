@@ -14,9 +14,11 @@ class Device:
         return {
             'mac': self.mac,
             'ip': self.ip,
-            'hostname': self.hostname,
-            'stat_info': self.stat_info.get_total()
+            'hostname': self.hostname
         }
+
+    def get_stat_info(self):
+        return self.stat_info.get_total()
 
     def is_sniffer_alive(self):
         return self.sniffer.is_alive()

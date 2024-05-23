@@ -32,14 +32,15 @@ class PacketStatsMonitor:
             await asyncio.sleep(self.update_interval)
 
     async def send_device_stats(self, devices):
-        stats_data = []
+        stat_data = []
         for device in devices:
-            stats = device.stat_info.get_total()
-            stats_data.append({
-                'ip': device.ip,
-                'stats': stats
+            device_info = device.get_device_info()
+            stat_info = device.get_stat_info()
+            stat_data.append({
+                'device': device_info,
+                'stat': stat_info
             })
         await self.websocket.send_json({
             'type': 'stats',
-            'data': stats_data
+            'data': stat_data
         })
