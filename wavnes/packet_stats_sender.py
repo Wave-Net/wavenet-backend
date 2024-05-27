@@ -1,7 +1,7 @@
 import asyncio
 
 
-class PacketStatsMonitor:
+class PacketStatsSender:
     def __init__(self, network_monitor, websocket):
         self.network_monitor = network_monitor
         self.websocket = websocket

@@ -2,7 +2,7 @@ import asyncio
 import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from wavnes.network_monitor import NetworkMonitor
-from wavnes.packet_stats_monitor import PacketStatsMonitor
+from wavnes.packet_stats_sender import PacketStatsSender
 from wavnes.packet_capturer import PacketCapturer
 
 app = FastAPI()
@@ -17,10 +17,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         loop = asyncio.get_event_loop()
-        stats_monitor = PacketStatsMonitor(network_monitor, websocket)
+        stats_sender = PacketStatsSender(network_monitor, websocket)
         packet_capturer = PacketCapturer(network_monitor, websocket, loop)
 
-        await stats_monitor.start()
+        await stats_sender.start()
 
         while True:
             message = await websocket.receive_text()
@@ -34,11 +34,11 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         packet_capturer.stop()
-        await stats_monitor.stop()
+        await stats_sender.stop()
 
     except Exception as e:
         print(f"Error: {e}")
 
     finally:
         packet_capturer.stop()
-        await stats_monitor.stop()
+        await stats_sender.stop()
