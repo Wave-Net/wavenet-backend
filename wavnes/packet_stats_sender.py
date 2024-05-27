@@ -19,7 +19,6 @@ class PacketStatsSender:
             except asyncio.CancelledError:
                 pass
             self.monitoring_task = None
-        self.network_monitor.reset()
 
     async def _monitoring_loop(self):
         while True:
