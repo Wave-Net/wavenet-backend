@@ -1,5 +1,6 @@
 import netifaces
 import socket
+import asyncio
 from wavnes.device import Device
 
 
@@ -7,6 +8,25 @@ class NetworkMonitor:
     def __init__(self, interface):
         self.interface = interface
         self.devices = {}
+        self.update_interval = 1
+        self.monitoring_task = None
+        
+    async def start(self):
+        self.monitoring_task = asyncio.create_task(self._monitoring_loop())
+
+    async def stop(self):
+        if self.monitoring_task:
+            self.monitoring_task.cancel()
+            try:
+                await self.monitoring_task
+            except asyncio.CancelledError:
+                pass
+            self.monitoring_task = None
+            
+    async def _monitoring_loop(self):
+        while True:
+            self.update_devices()
+            await asyncio.sleep(self.update_interval)
 
     def get_device_by_ip(self, ip):
         if ip in self.devices:
@@ -51,5 +71,4 @@ class NetworkMonitor:
                 self._remove_device(ip)
 
     def get_devices(self):
-        self.update_devices()
         return list(self.devices.values())
