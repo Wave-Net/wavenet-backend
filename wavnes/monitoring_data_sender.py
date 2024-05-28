@@ -1,7 +1,7 @@
 import asyncio
 
 
-class PacketStatsSender:
+class MonitoringDataSender:
     def __init__(self, network_monitor, websocket):
         self.network_monitor = network_monitor
         self.websocket = websocket
@@ -40,6 +40,6 @@ class PacketStatsSender:
                 'stat': stat_info
             })
         await self.websocket.send_json({
-            'type': 'stats',
+            'type': 'monitor',
             'data': stat_data
         })
