@@ -44,8 +44,8 @@ class PacketHandler(ABC):
         self.src = get_packet_src(packet)
         self.dst = get_packet_dst(packet)
         self.packet_info = {
-            'source_ip': self.src,
-            'destination_ip': self.dst,
+            'src': self.src,
+            'dst': self.dst,
             'length': len(packet),
         }
 
@@ -63,14 +63,14 @@ class MQTTHandler(PacketHandler):
         packet_type = CONTROL_PACKET_TYPE.get(self.packet.type, 'Unknown')
 
         self.packet_info.update({
-            'name': 'MQTT',
+            'layer': 'MQTT',
             'header': {
                 'msg_len': int(self.packet.len),
                 'dup': str(self.packet.DUP),
                 'qos': str(self.packet.QOS),
                 'retain': str(self.packet.RETAIN),
             },
-            'type': packet_type,
+            'mqtt_type': packet_type,
         })
 
         if packet_type == 'CONNECT':
@@ -167,7 +167,7 @@ class CoAPHandler(PacketHandler):
     def process_packet(self, packet):
         self.packet = packet[CoAP]
         self.packet_info.update({
-            'name': 'CoAP',
+            'layer': 'CoAP',
             'version': int(self.packet.ver),
             'type': int(self.packet.type),
             'token_length': int(self.packet.tkl),
