@@ -37,9 +37,10 @@ class Sniffer(threading.Thread):
     def _make_packet_info(self, handler, packet):
         self.time_info.update(packet)
         handler.process_packet(packet)
-        packet_info = {'message_type': 'packet'}
-        packet_info.update(self.time_info.get_time_info())
-        packet_info.update(handler.get_packet_info())
+        packet_info = {'type': 'packet',
+                       'data': {}}
+        packet_info['data'].update(self.time_info.get_time_info())
+        packet_info['data'].update(handler.get_packet_info())
         return packet_info
 
     async def _send_packet_info(self, packet_info, websocket):
