@@ -2,8 +2,8 @@ import asyncio
 import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from wavnes.network_monitor import NetworkMonitor
-from wavnes.packet_stats_sender import PacketStatsSender
-from wavnes.packet_capturer import PacketCapturer
+from wavnes.monitoring_data_sender import MonitoringDataSender
+from wavnes.packet_data_sender import PacketDataSender
 
 app = FastAPI()
 
@@ -11,16 +11,13 @@ app = FastAPI()
 network_monitor = NetworkMonitor('en0')
 
 
-@app.websocket("/ws")
+@app.websocket("/capture")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
     try:
         loop = asyncio.get_event_loop()
-        stats_sender = PacketStatsSender(network_monitor, websocket)
-        packet_capturer = PacketCapturer(network_monitor, websocket, loop)
-
-        await stats_sender.start()
+        sender = PacketDataSender(network_monitor, websocket, loop)
 
         while True:
             message = await websocket.receive_text()
@@ -28,17 +25,37 @@ async def websocket_endpoint(websocket: WebSocket):
             if data["type"] == "start_capture":
                 device_ip = data["device_ip"]
                 device = network_monitor.get_device_by_ip(device_ip)
-                packet_capturer.start(device)
+                sender.start(device)
             elif data["type"] == "stop_capture":
-                packet_capturer.stop()
+                sender.stop()
 
     except WebSocketDisconnect:
-        packet_capturer.stop()
-        await stats_sender.stop()
+        sender.stop()
 
     except Exception as e:
         print(f"Error: {e}")
 
     finally:
-        packet_capturer.stop()
-        await stats_sender.stop()
+        sender.stop()
+
+
+@app.websocket("/monitor")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+
+    try:
+        sender = MonitoringDataSender(network_monitor, websocket)
+        await sender.start()
+
+        while True:
+            message = await websocket.receive_text()
+            data = json.loads(message)
+
+    except WebSocketDisconnect:
+        await sender.stop()
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+    finally:
+        await sender.stop()

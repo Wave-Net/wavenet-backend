@@ -1,4 +1,4 @@
-class PacketCapturer:
+class PacketDataSender:
     def __init__(self, network_monitor, websocket, loop):
         self.network_monitor = network_monitor
         self.websocket = websocket
