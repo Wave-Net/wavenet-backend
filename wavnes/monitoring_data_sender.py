@@ -5,22 +5,22 @@ class MonitoringDataSender:
     def __init__(self, network_monitor, websocket):
         self.network_monitor = network_monitor
         self.websocket = websocket
-        self.update_interval = 1
-        self.monitoring_task = None
+        self.monitoring_send_interval = 1
+        self.monitoring_sender_task = None
 
     async def start(self):
-        self.monitoring_task = asyncio.create_task(self._monitoring_loop())
+        self.monitoring_sender_task = asyncio.create_task(self._stats_send_loop())
 
     async def stop(self):
-        if self.monitoring_task:
-            self.monitoring_task.cancel()
+        if self.monitoring_sender_task:
+            self.monitoring_sender_task.cancel()
             try:
-                await self.monitoring_task
+                await self.monitoring_sender_task
             except asyncio.CancelledError:
                 pass
-            self.monitoring_task = None
+            self.monitoring_sender_task = None
 
-    async def _monitoring_loop(self):
+    async def _stats_send_loop(self):
         while True:
             devices = self.network_monitor.get_devices()
             try:
@@ -28,7 +28,7 @@ class MonitoringDataSender:
             except Exception as e:
                 print(f"Error sending device stats: {e}")
                 break
-            await asyncio.sleep(self.update_interval)
+            await asyncio.sleep(self.monitoring_send_interval)
 
     async def send_device_stats(self, devices):
         stat_data = []
