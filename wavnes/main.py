@@ -30,21 +30,15 @@ async def websocket_endpoint(websocket: WebSocket):
         loop = asyncio.get_event_loop()
         sender = PacketDataSender(network_monitor, websocket, loop)
 
-        device_ip = '192.168.55.30'
-        device = network_monitor.get_device_by_ip(device_ip)
-        print(device.ip)
-
-        await sender.start(device)
-
         while True:
             message = await websocket.receive_text()
-            # data = json.loads(message)
-            # if data["type"] == "start_capture":
-            #     device_ip = data["device_ip"]
-            #     device = network_monitor.get_device_by_ip(device_ip)
-            #     await sender.start(device)
-            # elif data["type"] == "stop_capture":
-            #     await sender.stop()
+            data = json.loads(message)
+            if data["type"] == "start_capture":
+                device_ip = data["data"]
+                device = network_monitor.get_device_by_ip(device_ip)
+                await sender.start(device)
+            elif data["type"] == "stop_capture":
+                await sender.stop()
 
     except WebSocketDisconnect:
         await sender.stop()
