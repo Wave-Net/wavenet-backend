@@ -20,9 +20,10 @@ class Sniffer(threading.Thread):
         self.packet_send_event = threading.Event()
         self.stop_event = threading.Event()
         self.packets = []
-
-    def reset_time_info(self):
+        
+    def reset(self):
         self.time_info.reset()
+        self.packets = []
 
     def run(self):
         filter_expr = f"ip and (ip src {self.device.ip} or ip dst {self.device.ip})"
@@ -70,6 +71,7 @@ class Sniffer(threading.Thread):
         self.websocket = websocket
         self.loop = loop
         self.packet_send_event.set()
+        self.reset()
 
     def stop_packet_send(self):
         self.packet_send_event.clear()
