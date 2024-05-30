@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from wavnes.network_monitor import NetworkMonitor
 from wavnes.monitoring_data_sender import MonitoringDataSender
 from wavnes.packet_data_sender import PacketDataSender
-from wavnes.config import PCAP_DIRECTORY, CSV_DIRECTORY, NETWORK_INTERFACE
+from wavnes.config import PCAP_DIRECTORY, CSV_DIRECTORY, JSON_DIRECTORY, NETWORK_INTERFACE
 from wavnes.utils import *
 
 
@@ -88,7 +88,9 @@ def download_pcap_endpoint(device_ip: str = Query(..., description="Target devic
     if not os.path.isfile(pcap_path):
         raise HTTPException(
             status_code=404, detail="File not found or access denied")
-    return FileResponse(pcap_path, media_type='application/vnd.tcpdump.pcap', filename=os.path.basename(pcap_path))
+    return FileResponse(pcap_path,
+                        media_type='application/vnd.tcpdump.pcap',
+                        filename=os.path.basename(pcap_path))
 
 
 @app.get("/download/csv")
@@ -99,4 +101,19 @@ def download_csv_endpoint(device_ip: str = Query(..., description="Target device
             status_code=404, detail="File not found or access denied")
     csv_path = device_ip_to_file_path(CSV_DIRECTORY, device_ip, 'csv')
     make_csv_from_pcap(pcap_path, csv_path)
-    return FileResponse(csv_path, media_type='text/csv', filename=os.path.basename(csv_path))
+    return FileResponse(csv_path,
+                        media_type='text/csv',
+                        filename=os.path.basename(csv_path))
+
+
+@app.get("/download/json")
+def download_csv_endpoint(device_ip: str = Query(..., description="Target device IP")):
+    pcap_path = device_ip_to_file_path(PCAP_DIRECTORY, device_ip, 'pcap')
+    if not os.path.isfile(pcap_path):
+        raise HTTPException(
+            status_code=404, detail="File not found or access denied")
+    json_path = device_ip_to_file_path(JSON_DIRECTORY, device_ip, 'json')
+    make_json_from_pcap(pcap_path, json_path)
+    return FileResponse(json_path,
+                        media_type='application/json',
+                        filename=os.path.basename(json_path))

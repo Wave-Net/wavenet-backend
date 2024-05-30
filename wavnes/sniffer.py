@@ -20,7 +20,7 @@ class Sniffer(threading.Thread):
         self.packet_send_event = threading.Event()
         self.stop_event = threading.Event()
         self.packets = []
-        
+
     def reset(self):
         self.time_info.reset()
         self.packets = []
