@@ -1,10 +1,13 @@
 import threading
 import asyncio
+import os
 from scapy.all import *
 from scapy.contrib.mqtt import *
 from scapy.contrib.coap import *
+from scapy.utils import wrpcap
 from wavnes.packet_handlers import get_packet_handler
 from wavnes.info import PacketTimeInfo
+from wavnes.config import PCAP_DIRECTORY
 
 
 class Sniffer(threading.Thread):
@@ -16,9 +19,11 @@ class Sniffer(threading.Thread):
         self.time_info = PacketTimeInfo()
         self.packet_send_event = threading.Event()
         self.stop_event = threading.Event()
+        self.packets = []
 
-    def reset_time_info(self):
+    def reset(self):
         self.time_info.reset()
+        self.packets = []
 
     def run(self):
         filter_expr = f"ip and (ip src {self.device.ip} or ip dst {self.device.ip})"
@@ -55,7 +60,9 @@ class Sniffer(threading.Thread):
             return
         self._update_stat_info(
             handler.src, handler.dst, handler.packet.len)
+
         if self.packet_send_event.is_set():
+            self.packets.append(packet)
             packet_info = self._make_packet_info(handler, packet)
             asyncio.run_coroutine_threadsafe(self._send_packet_info(
                 packet_info, self.websocket), self.loop)
@@ -64,8 +71,18 @@ class Sniffer(threading.Thread):
         self.websocket = websocket
         self.loop = loop
         self.packet_send_event.set()
+        self.reset()
 
     def stop_packet_send(self):
         self.packet_send_event.clear()
         self.websocket = None
         self.loop = None
+        self._make_pcap_file()
+
+    def _make_pcap_file(self):
+        sanitized_ip = self.device.ip.replace('.', '_')
+        pcap_file = os.path.join(PCAP_DIRECTORY, f"{sanitized_ip}.pcap")
+        if os.path.exists(pcap_file):
+            os.remove(pcap_file)
+        if self.packets:
+            wrpcap(pcap_file, self.packets)

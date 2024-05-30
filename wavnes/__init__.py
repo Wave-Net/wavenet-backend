@@ -5,3 +5,6 @@ from wavnes.device import Device
 from wavnes.sniffer import Sniffer
 from wavnes.packet_handlers import *
 from wavnes.info import *
+from wavnes.config import *
+from wavnes.utils import *
+from wavnes.logging_config import logger

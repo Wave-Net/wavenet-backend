@@ -14,6 +14,7 @@ class PacketDataSender:
     async def start(self, device):
         if self.selected_device:
             self.selected_device.sniffer.stop_packet_send()
+            self.selected_device = None
 
         self.selected_device = device
         self.selected_device.sniffer.start_packet_send(
@@ -31,7 +32,6 @@ class PacketDataSender:
 
         if self.selected_device:
             self.selected_device.sniffer.stop_packet_send()
-            self.selected_device.sniffer.reset_time_info()
             self.selected_device = None
 
     async def _stat_send_loop(self):
