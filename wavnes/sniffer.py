@@ -1,14 +1,17 @@
 import threading
 import asyncio
+import os
 from scapy.all import *
 from scapy.contrib.mqtt import *
 from scapy.contrib.coap import *
+from scapy.utils import wrpcap
 from wavnes.packet_handlers import get_packet_handler
 from wavnes.info import PacketTimeInfo
-from scapy.utils import wrpcap
+from wavnes.config import PCAP_DIRECTORY
+
 
 class Sniffer(threading.Thread):
-    def __init__(self, device, pcap_file="capture.pcap"):
+    def __init__(self, device):
         super().__init__()
         self.device = device
         self.websocket = None
@@ -16,10 +19,8 @@ class Sniffer(threading.Thread):
         self.time_info = PacketTimeInfo()
         self.packet_send_event = threading.Event()
         self.stop_event = threading.Event()
-
-        # 패킷 저장
-        self.pcap_file = pcap_file
         self.packets = []
+
     def reset_time_info(self):
         self.time_info.reset()
 
@@ -31,10 +32,6 @@ class Sniffer(threading.Thread):
                   timeout=1, store=False)
 
     def stop(self):
-        # 종료시 나머지 패킷 저장
-        if self.packets:
-            wrpcap(self.pcap_file, self.packets, append=True)
-
         self.stop_event.set()
         self.join()
 
@@ -44,9 +41,10 @@ class Sniffer(threading.Thread):
     def _make_packet_info(self, handler, packet):
         self.time_info.update(packet)
         handler.process_packet(packet)
-        packet_info = {'message_type': 'packet'}
-        packet_info.update(self.time_info.get_time_info())
-        packet_info.update(handler.get_packet_info())
+        packet_info = {'type': 'packet',
+                       'data': {}}
+        packet_info['data'].update(self.time_info.get_time_info())
+        packet_info['data'].update(handler.get_packet_info())
         return packet_info
 
     async def _send_packet_info(self, packet_info, websocket):
@@ -61,15 +59,12 @@ class Sniffer(threading.Thread):
             return
         self._update_stat_info(
             handler.src, handler.dst, handler.packet.len)
+
         if self.packet_send_event.is_set():
+            self.packets.append(packet)
             packet_info = self._make_packet_info(handler, packet)
             asyncio.run_coroutine_threadsafe(self._send_packet_info(
                 packet_info, self.websocket), self.loop)
-        ##
-        self.packets.append(packet)
-        if len(self.packets) >= 100:  # 100개마다 저장
-            wrpcap(self.pcap_file, self.packets, append=True)
-            self.packets = []
 
     def start_packet_send(self, websocket, loop):
         self.websocket = websocket
@@ -80,3 +75,12 @@ class Sniffer(threading.Thread):
         self.packet_send_event.clear()
         self.websocket = None
         self.loop = None
+        self._make_pcap_file()
+
+    def _make_pcap_file(self):
+        sanitized_ip = self.device.ip.replace('.', '_')
+        pcap_file = os.path.join(PCAP_DIRECTORY, f"{sanitized_ip}.pcap")
+        if os.path.exists(pcap_file):
+            os.remove(pcap_file)
+        if self.packets:
+            wrpcap(pcap_file, self.packets)
