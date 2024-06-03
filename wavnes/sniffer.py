@@ -1,13 +1,12 @@
 import threading
 import asyncio
 import os
-from scapy.all import *
-from scapy.contrib.mqtt import *
-from scapy.contrib.coap import *
-from scapy.utils import wrpcap
-from wavnes.packet_handlers import get_packet_handler
+from pyshark import LiveCapture
+from pyshark.packet.packet import Packet
+from wavnes.utils import packet_to_dict
 from wavnes.info import PacketTimeInfo
-from wavnes.config import PCAP_DIRECTORY
+from wavnes.config import PCAP_DIRECTORY, NETWORK_INTERFACE
+from wavnes.logging_config import logger
 
 
 class Sniffer(threading.Thread):
@@ -26,26 +25,29 @@ class Sniffer(threading.Thread):
         self.packets = []
 
     def run(self):
-        filter_expr = f"ip and (ip src {self.device.ip} or ip dst {self.device.ip})"
-        while not self.stop_event.is_set():
-            sniff(prn=lambda packet: self._packet_callback(packet),
-                  filter=filter_expr,
-                  timeout=1, store=False)
+        filter_expr = (
+            f"ip and (ip src {self.device.ip} or ip dst {self.device.ip}) "
+        )
+        capture = LiveCapture(interface=NETWORK_INTERFACE,
+                              bpf_filter=filter_expr,)
+        try:
+            capture.apply_on_packets(callback=self._packet_callback)
+        except asyncio.CancelledError:
+            pass
+        capture.close()
 
     def stop(self):
         self.stop_event.set()
-        self.join()
 
     def _update_stat_info(self, src, dst, data):
         self.device.stat_info.update(src, dst, data)
 
-    def _make_packet_info(self, handler, packet):
+    def _make_packet_info(self, packet):
         self.time_info.update(packet)
-        handler.process_packet(packet)
         packet_info = {'type': 'packet',
                        'data': {}}
         packet_info['data'].update(self.time_info.get_time_info())
-        packet_info['data'].update(handler.get_packet_info())
+        packet_info['data'].update(packet_to_dict(packet))
         return packet_info
 
     async def _send_packet_info(self, packet_info, websocket):
@@ -54,16 +56,18 @@ class Sniffer(threading.Thread):
         except Exception as e:
             print(f"Error sending packet info: {e}")
 
-    def _packet_callback(self, packet):
-        handler = get_packet_handler(packet)
-        if handler is None:
+    def _packet_callback(self, packet: Packet):
+        if self.stop_event.is_set():
+            raise asyncio.CancelledError
+        if not 'mqtt' in packet and not 'coap' in packet:
             return
+
         self._update_stat_info(
-            handler.src, handler.dst, handler.packet.len)
+            packet.ip.src, packet.ip.dst, int(packet.length))
 
         if self.packet_send_event.is_set():
             self.packets.append(packet)
-            packet_info = self._make_packet_info(handler, packet)
+            packet_info = self._make_packet_info(packet)
             asyncio.run_coroutine_threadsafe(self._send_packet_info(
                 packet_info, self.websocket), self.loop)
 
@@ -84,5 +88,8 @@ class Sniffer(threading.Thread):
         pcap_file = os.path.join(PCAP_DIRECTORY, f"{sanitized_ip}.pcap")
         if os.path.exists(pcap_file):
             os.remove(pcap_file)
-        if self.packets:
-            wrpcap(pcap_file, self.packets)
+        if not self.packet:
+            return
+        with open(pcap_file, 'wb') as pcap_writer:
+            for packet in self.packets:
+                pcap_writer.write(bytes(packet))
