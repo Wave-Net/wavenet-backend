@@ -43,11 +43,21 @@ class Sniffer(threading.Thread):
         self.device.stat_info.update(src, dst, data)
 
     def _make_packet_info(self, packet):
-        self.time_info.update(packet)
+        iot_protocol = 'None'
+        if 'mqtt' in packet:
+            iot_protocol = 'mqtt'
+        elif 'coap' in packet:
+            iot_protocol = 'coap'
+
         packet_info = {'type': 'packet',
-                       'data': {}}
-        packet_info['data'].update(self.time_info.get_time_info())
-        packet_info['data'].update(packet_to_dict(packet))
+                       'data': {'info': {},
+                                'layers': {}}
+                       }
+        self.time_info.update(packet)
+        packet_info['data']['info'].update(self.time_info.get_time_info())
+        packet_info['data']['info'].update({'protocol': iot_protocol})
+        packet_info['data']['layers'].update(packet_to_dict(packet))
+
         return packet_info
 
     async def _send_packet_info(self, packet_info, websocket):
