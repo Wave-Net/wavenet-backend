@@ -1,7 +1,27 @@
 import os
 import json
 import pyshark
+import platform
 from wavnes.protocol_fields import PROTOCOL_FIELDS_CLASSES
+
+
+def get_network_interface():
+    os_name = platform.system()
+
+    if os_name == "Darwin":  # Mac OS
+        return "en0"
+    elif os_name == "Windows":  # Windows
+        return "Ethernet"
+    elif os_name == "Linux":  # Linux
+        return "eth0"
+    elif os_name in ["FreeBSD", "OpenBSD", "NetBSD"]:  # BSD 계열 Unix
+        return "re0"
+    elif os_name in ["SunOS", "Solaris"]:  # Sun/Oracle Unix
+        return "e1000g0"
+    elif os_name == "AIX":  # IBM AIX Unix
+        return "en0"
+    else:
+        return "eth0"  # Default value
 
 
 def device_ip_to_file_path(directory: str, device_ip: str, file_type: str):
