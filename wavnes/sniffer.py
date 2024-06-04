@@ -86,6 +86,10 @@ class Sniffer(threading.Thread):
     def _make_pcap_file(self):
         sanitized_ip = self.device.ip.replace('.', '_')
         pcap_file = os.path.join(PCAP_DIRECTORY, f"{sanitized_ip}.pcap")
+
+        pcap_dir = os.path.dirname(pcap_file)
+        os.makedirs(pcap_dir, exist_ok=True)
+
         if os.path.exists(pcap_file):
             os.remove(pcap_file)
         if not self.packet:
