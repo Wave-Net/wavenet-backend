@@ -5,7 +5,7 @@ import platform
 from wavnes.protocol_fields import PROTOCOL_FIELDS_CLASSES
 
 
-def get_network_interface():
+def get_network_default_interface():
     os_name = platform.system()
 
     if os_name == "Darwin":  # Mac OS
@@ -31,7 +31,11 @@ def device_ip_to_file_path(directory: str, device_ip: str, file_type: str):
 
 
 def make_csv_from_pcap(pcap_path, csv_path):
+    csv_dir = os.path.dirname(csv_path)
+    os.makedirs(csv_dir, exist_ok=True)
+
     cap = pyshark.FileCapture(pcap_path)
+
     with open(csv_path, 'w') as f:
         packet = cap[0]
         fieldnames = []
@@ -49,6 +53,9 @@ def make_csv_from_pcap(pcap_path, csv_path):
 
 
 def make_json_from_pcap(pcap_path, json_path):
+    json_dir = os.path.dirname(json_path)
+    os.makedirs(json_dir, exist_ok=True)
+
     cap = pyshark.FileCapture(pcap_path)
     packets = []
 
