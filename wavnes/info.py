@@ -18,7 +18,7 @@ class PacketTimeInfo:
         with self.lock:
             self.index += 1
             self.prev_time = self.curr_time
-            self.curr_time = packet.time
+            self.curr_time = packet.sniff_time.timestamp()
 
     def get_time_info(self):
         with self.lock:

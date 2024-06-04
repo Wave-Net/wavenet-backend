@@ -81,7 +81,7 @@ class Sniffer(threading.Thread):
         self.packet_send_event.clear()
         self.websocket = None
         self.loop = None
-        self._make_pcap_file()
+        # self._make_pcap_file()
 
     def _make_pcap_file(self):
         sanitized_ip = self.device.ip.replace('.', '_')
