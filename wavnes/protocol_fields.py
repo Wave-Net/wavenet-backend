@@ -27,14 +27,14 @@ class EthernetFields(ProtocolFields):
 class IpFields(ProtocolFields):
     COMMON_FIELDS = [
         ('version', 4),
-        ('ihl', 4),
-        ('tos', 8),
+        ('hdr_len', 4),
+        ('dsfield', 8),
         ('len', 16),
         ('id', 16),
         ('flags', 3),
         ('frag_offset', 13),
         ('ttl', 8),
-        ('protocol', 8),
+        ('proto', 8),
         ('checksum', 16),
         ('src', 32),
         ('dst', 32),
@@ -48,18 +48,32 @@ class IpFields(ProtocolFields):
 
 class TcpFields(ProtocolFields):
     COMMON_FIELDS = [
-        ('src_port', 16),
-        ('dst_port', 16),
-        ('seq_num', 32),
-        ('ack_num', 32),
-        ('data_offset', 4),
-        ('reserved', 3),
-        ('flags', 9),
-        ('window', 16),
+        ('srcport', 16),
+        ('dstport', 16),
+        ('seq', 32),
+        ('ack', 32),
+        ('hdr_len', 4),
+        ('flags', 12),
+        ('window_size_value', 16),
         ('checksum', 16),
         ('urgent_pointer', 16),
+        ('options', '~'),
     ]
     LAYER_NAME = 'TCP'
+
+    @classmethod
+    def get_fields(cls):
+        return cls.COMMON_FIELDS
+
+
+class UdpFields(ProtocolFields):
+    COMMON_FIELDS = [
+        ('srcport', 16),
+        ('dstport', 16),
+        ('length', 16),
+        ('checksum', 16),
+    ]
+    LAYER_NAME = 'UDP'
 
     @classmethod
     def get_fields(cls):
@@ -169,10 +183,11 @@ class CoapFields(ProtocolFields):
     COMMON_FIELDS = [
         ('version', 2),
         ('type', 2),
-        ('token_length', 4),
+        ('token_len', 4),
         ('code', 8),
-        ('message_id', 16),
+        ('mid', 16),
         ('token', '~'),
+        ('opt_name', '~'),
     ]
     LAYER_NAME = 'COAP'
 
@@ -185,6 +200,7 @@ PROTOCOL_FIELDS_CLASSES = {
     'ETH': EthernetFields,
     'IP': IpFields,
     'TCP': TcpFields,
+    'UDP': UdpFields,
     'MQTT': MqttFields,
     'COAP': CoapFields,
 }

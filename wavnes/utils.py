@@ -3,6 +3,7 @@ import json
 import pyshark
 import platform
 from wavnes.protocol_fields import PROTOCOL_FIELDS_CLASSES
+from wavnes.logging_config import logger
 
 
 def get_network_default_interface():
@@ -72,29 +73,20 @@ def make_json_from_pcap(pcap_path, json_path):
         json.dump(packets, f, indent=4)
 
 
-def format_field_value(layer, field):
-    try:
-        field_value = layer.get_field(field).showname_value
-    except AttributeError:
-        try:
-            field_value = getattr(layer, field)
-        except AttributeError:
-            raise AttributeError
-    return str(field_value)
-
-
 def field_to_dict(layer, field_name, field_length):
     try:
-        value = format_field_value(layer, field_name)
-    except AttributeError:
-        raise AttributeError
+        field_obj = layer.get_field(field_name)
+    except:
+        return None
 
-    field_obj = layer.get_field(field_name)
-    raw_bytes = field_obj.raw_value if field_obj else ''
+    value = field_obj.showname_value
+    raw_bytes = field_obj.raw_value
+
     spaced_raw_bytes = ' '.join(
-        [raw_bytes[i:i+2] for i in range(0, len(raw_bytes), 2)]) if raw_bytes else ''
+        [raw_bytes[i:i+2] for i in range(0, len(raw_bytes), 2)])
     ascii_representation = ''.join([chr(int(raw_bytes[i:i+2], 16)) if 32 <= int(
-        raw_bytes[i:i+2], 16) <= 126 else '.' for i in range(0, len(raw_bytes), 2)]) if raw_bytes else ''
+        raw_bytes[i:i+2], 16) <= 126 else '.' for i in range(0, len(raw_bytes), 2)])
+    field_length = len(raw_bytes) * 4 if field_length == '~' else field_length
 
     return {
         'value': value,
@@ -128,13 +120,13 @@ def packet_to_dict(packet):
         layer_name = layer.layer_name.upper()
         try:
             fields = get_included_fields(layer)
-        except KeyError:
+        except:
             continue
         layer_dict = {}
         for field_name, field_length in fields:
             try:
                 field_dict = field_to_dict(layer, field_name, field_length)
-            except AttributeError:
+            except:
                 continue
             layer_dict[field_name] = field_dict
         pkt_dict[layer_name] = layer_dict
