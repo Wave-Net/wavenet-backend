@@ -6,4 +6,5 @@ from wavnes.sniffer import Sniffer
 from wavnes.info import *
 from wavnes.config import *
 from wavnes.utils import *
+from wavnes.pcap_file_generator import PcapFileGenerator
 from wavnes.logging_config import logger

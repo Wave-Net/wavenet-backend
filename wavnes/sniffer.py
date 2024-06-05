@@ -1,10 +1,10 @@
 import threading
 import asyncio
-import os
 from pyshark import LiveCapture
 from pyshark.packet.packet import Packet
-from wavnes.utils import packet_to_dict
+from wavnes.utils import packet_to_dict, device_ip_to_file_path
 from wavnes.info import PacketTimeInfo
+from wavnes.pcap_file_generator import PcapFileGenerator
 from wavnes.config import PCAP_DIRECTORY, NETWORK_INTERFACE
 from wavnes.logging_config import logger
 
@@ -18,16 +18,17 @@ class Sniffer(threading.Thread):
         self.time_info = PacketTimeInfo()
         self.packet_send_event = threading.Event()
         self.stop_event = threading.Event()
-        self.packets = []
+        self.pcap_generator = None
 
     def reset(self):
         self.time_info.reset()
-        self.packets = []
 
     def run(self):
         filter_expr = (
             f"ip and (ip src {self.device.ip} or ip dst {self.device.ip}) "
         )
+        self.pcap_generator = PcapFileGenerator(
+            interface=NETWORK_INTERFACE, bpf_filter=filter_expr)
         capture = LiveCapture(interface=NETWORK_INTERFACE,
                               bpf_filter=filter_expr,)
         try:
@@ -66,6 +67,9 @@ class Sniffer(threading.Thread):
         except Exception as e:
             print(f"Error sending packet info: {e}")
 
+    def _get_pcap_path(self):
+        return device_ip_to_file_path(PCAP_DIRECTORY, self.device.ip, 'pcap')
+
     def _packet_callback(self, packet: Packet):
         if self.stop_event.is_set():
             raise asyncio.CancelledError
@@ -76,7 +80,6 @@ class Sniffer(threading.Thread):
             packet.ip.src, packet.ip.dst, int(packet.length))
 
         if self.packet_send_event.is_set():
-            self.packets.append(packet)
             packet_info = self._make_packet_info(packet)
             asyncio.run_coroutine_threadsafe(self._send_packet_info(
                 packet_info, self.websocket), self.loop)
@@ -85,25 +88,11 @@ class Sniffer(threading.Thread):
         self.websocket = websocket
         self.loop = loop
         self.packet_send_event.set()
+        self.pcap_generator.start_capture_for_pcap()
         self.reset()
 
     def stop_packet_send(self):
         self.packet_send_event.clear()
         self.websocket = None
         self.loop = None
-        # self._make_pcap_file()
-
-    def _make_pcap_file(self):
-        sanitized_ip = self.device.ip.replace('.', '_')
-        pcap_file = os.path.join(PCAP_DIRECTORY, f"{sanitized_ip}.pcap")
-
-        pcap_dir = os.path.dirname(pcap_file)
-        os.makedirs(pcap_dir, exist_ok=True)
-
-        if os.path.exists(pcap_file):
-            os.remove(pcap_file)
-        if not self.packet:
-            return
-        with open(pcap_file, 'wb') as pcap_writer:
-            for packet in self.packets:
-                pcap_writer.write(bytes(packet))
+        self.pcap_generator.stop_and_save_pcap(self._get_pcap_path())
