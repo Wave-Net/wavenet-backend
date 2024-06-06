@@ -10,7 +10,7 @@ class PacketTimeInfo:
     def reset(self):
         with self.lock:
             self.index = 0
-            self.start_time = time.time()
+            self.start_time = None
             self.prev_time = 0.0
             self.curr_time = 0.0
 
@@ -19,6 +19,8 @@ class PacketTimeInfo:
             self.index += 1
             self.prev_time = self.curr_time
             self.curr_time = packet.sniff_time.timestamp()
+            if self.start_time is None:
+                self.start_time = self.curr_time
 
     def get_time_info(self):
         with self.lock:

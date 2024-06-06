@@ -10,13 +10,17 @@ class PacketDataSender:
         self.prev_stat_info = None
         self.stat_send_interval = 1
         self.stat_sender_task = None
-
-    async def start(self, device):
+        
+    def reset(self):
         if self.selected_device:
             self.selected_device.sniffer.stop_packet_send()
             self.selected_device = None
+        self.prev_stat_info = None
 
+    async def start(self, device):
+        self.reset()
         self.selected_device = device
+
         self.selected_device.sniffer.start_packet_send(
             self.websocket, self.loop)
         self.stat_sender_task = asyncio.create_task(self._stat_send_loop())
