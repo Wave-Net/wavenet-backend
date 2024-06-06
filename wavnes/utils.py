@@ -178,48 +178,48 @@ def make_packet_info(time_info, packet):
 def get_mac_by_ip(ip):
     try:
         system = platform.system()
-        logger.debug(f"현재 운영 체제: {system}")
+        logger.info(f"현재 운영 체제: {system}")
         if system == 'Windows':
             cmd = f"arp -a {ip}"
             output = subprocess.check_output(cmd, shell=True).decode()
-            logger.debug(f"Windows 명령어 출력: {output}")
+            logger.info(f"Windows 명령어 출력: {output}")
             lines = output.split('\n')
             for line in lines:
-                logger.debug(f"Windows 줄: {line}")
+                logger.info(f"Windows 줄: {line}")
                 if ip in line:
                     parts = line.split()
-                    logger.debug(f"Windows parts: {parts}")
+                    logger.info(f"Windows parts: {parts}")
                     if len(parts) > 1:
                         mac = parts[1]
-                        logger.debug(f"Windows에서 {ip}의 MAC 주소: {mac}")
+                        logger.info(f"Windows에서 {ip}의 MAC 주소: {mac}")
                         return mac
         elif system == 'Linux':
             cmd = f"ip neigh show {ip}"
             output = subprocess.check_output(cmd, shell=True).decode()
-            logger.debug(f"Linux 명령어 출력: {output}")
+            logger.info(f"Linux 명령어 출력: {output}")
             lines = output.split('\n')
             for line in lines:
-                logger.debug(f"Linux 줄: {line}")
+                logger.info(f"Linux 줄: {line}")
                 if ip in line:
                     parts = line.split()
-                    logger.debug(f"Linux parts: {parts}")
+                    logger.info(f"Linux parts: {parts}")
                     if len(parts) > 4:
                         mac = parts[4]
-                        logger.debug(f"Linux에서 {ip}의 MAC 주소: {mac}")
+                        logger.info(f"Linux에서 {ip}의 MAC 주소: {mac}")
                         return mac
         elif system == 'Darwin':
             cmd = f"arp {ip}"
             output = subprocess.check_output(cmd, shell=True).decode()
-            logger.debug(f"macOS 명령어 출력: {output}")
+            logger.info(f"macOS 명령어 출력: {output}")
             lines = output.split('\n')
             for line in lines:
-                logger.debug(f"macOS 줄: {line}")
+                logger.info(f"macOS 줄: {line}")
                 if ip in line:
                     parts = line.split()
-                    logger.debug(f"macOS parts: {parts}")
+                    logger.info(f"macOS parts: {parts}")
                     if len(parts) > 3:
                         mac = parts[3]
-                        logger.debug(f"macOS에서 {ip}의 MAC 주소: {mac}")
+                        logger.info(f"macOS에서 {ip}의 MAC 주소: {mac}")
                         return mac
         else:
             logger.error(f"지원되지 않는 운영 체제: {system}")
