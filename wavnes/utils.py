@@ -188,7 +188,7 @@ def get_mac_address(ip):
 
     # IP address not found
     logger.warning(f"Could not find MAC address for IP {ip}")
-    return None
+    return 'Unknown'
 
 def get_mac_by_ip(ip):
     try:
