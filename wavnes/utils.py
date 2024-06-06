@@ -194,8 +194,8 @@ def get_mac_by_ip(ip):
                         logger.info(f"Windows에서 {ip}의 MAC 주소: {mac}")
                         return mac
         elif system == 'Linux':
-            cmd = f"ip neigh show {ip}"
-            output = subprocess.check_output(cmd, shell=True).decode()
+            cmd = f"sudo ip neigh show {ip}"
+            output = subprocess.check_output(cmd, shell=True).decode().strip()
             logger.info(f"Linux 명령어 출력: {output}")
             lines = output.split('\n')
             for line in lines:
@@ -223,13 +223,10 @@ def get_mac_by_ip(ip):
                         return mac
         else:
             logger.error(f"지원되지 않는 운영 체제: {system}")
-            return '알 수 없음'
-    except subprocess.CalledProcessError as e:
-        logger.error(f"명령 실패: {e.cmd} 출력: {e.output}")
-        return '알 수 없음'
-    except Exception as e:
+            return 'Unknown'
+    except:
         logger.error(f"{ip}의 MAC 주소를 가져오는 중 오류 발생: {str(e)}")
-        return '알 수 없음'
+        return 'Unknown'
 
 
 def get_hostname_by_ip(ip):
