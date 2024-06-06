@@ -118,18 +118,28 @@ def packet_to_dict(packet):
 
     for layer in packet.layers:
         layer_name = layer.layer_name.upper()
-        try:
-            fields = get_included_fields(layer)
-        except:
-            continue
-        layer_dict = {}
-        for field_name, field_length in fields:
+        if layer_name == 'MQTT':
+            layers_to_process = packet.get_multiple_layers('mqtt')
+        else:
+            layers_to_process = [layer]
+
+        for i, current_layer in enumerate(layers_to_process):
             try:
-                field_dict = field_to_dict(layer, field_name, field_length)
+                fields = get_included_fields(current_layer)
             except:
                 continue
-            layer_dict[field_name] = field_dict
-        pkt_dict[layer_name] = layer_dict
+            layer_dict = {}
+            for field_name, field_length in fields:
+                try:
+                    field_dict = field_to_dict(current_layer, field_name, field_length)
+                except:
+                    continue
+                layer_dict[field_name] = field_dict
+            
+            if layer_name == 'MQTT':
+                pkt_dict[f'{layer_name}{i + 1}'] = layer_dict
+            else:
+                pkt_dict[layer_name] = layer_dict
 
     return pkt_dict
 
