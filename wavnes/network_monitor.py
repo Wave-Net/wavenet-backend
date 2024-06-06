@@ -1,7 +1,7 @@
 import netifaces
 import asyncio
 from wavnes.device import Device
-from wavnes.utils import get_mac_by_ip, get_hostname_by_ip, get_vendor_by_mac, get_mac_address
+from wavnes.utils import get_mac_by_ip, get_hostname_by_ip, get_vendor_by_mac
 from wavnes.logging_config import logger
 
 
@@ -42,7 +42,7 @@ class NetworkMonitor:
 
     async def _add_device(self, ip):
         try:
-            mac = get_mac_address(ip)
+            mac = get_mac_by_ip(ip)
             hostname = get_hostname_by_ip(ip)
             vendor = await get_vendor_by_mac(mac)
         except:

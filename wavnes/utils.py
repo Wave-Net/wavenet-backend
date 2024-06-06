@@ -175,7 +175,7 @@ def make_packet_info(time_info, packet):
 
     return packet_info
 
-def get_mac_address(ip):
+def get_mac_by_ip(ip):
     interfaces = netifaces.interfaces()
     for interface in interfaces:
         addr = netifaces.ifaddresses(interface)
@@ -185,67 +185,8 @@ def get_mac_address(ip):
                 mac_address = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr']
                 logger.info(f"MAC address of {ip} on interface {interface}: {mac_address}")
                 return mac_address
-
-    # IP address not found
     logger.warning(f"Could not find MAC address for IP {ip}")
     return 'Unknown'
-
-def get_mac_by_ip(ip):
-    try:
-        system = platform.system()
-        logger.info(f"현재 운영 체제: {system}")
-        if system == 'Windows':
-            cmd = f"arp -a {ip}"
-            output = subprocess.check_output(cmd, shell=True).decode()
-            logger.info(f"Windows 명령어 출력: {output}")
-            lines = output.split('\n')
-            for line in lines:
-                logger.info(f"Windows 줄: {line}")
-                if ip in line:
-                    parts = line.split()
-                    logger.info(f"Windows parts: {parts}")
-                    if len(parts) > 1:
-                        mac = parts[1]
-                        logger.info(f"Windows에서 {ip}의 MAC 주소: {mac}")
-                        return mac
-            return 'Unknown'
-        elif system == 'Linux':
-            cmd = f"sudo ip neigh show {ip}"
-            output = subprocess.check_output(cmd, shell=True).decode().strip()
-            logger.info(f"Linux 명령어 출력: {output}")
-            lines = output.split('\n')
-            for line in lines:
-                logger.info(f"Linux 줄: {line}")
-                if ip in line:
-                    parts = line.split()
-                    logger.info(f"Linux parts: {parts}")
-                    if len(parts) > 4:
-                        mac = parts[4]
-                        logger.info(f"Linux에서 {ip}의 MAC 주소: {mac}")
-                        return mac
-            return 'Unknown'
-        elif system == 'Darwin':
-            cmd = f"arp {ip}"
-            output = subprocess.check_output(cmd, shell=True).decode()
-            logger.info(f"macOS 명령어 출력: {output}")
-            lines = output.split('\n')
-            for line in lines:
-                logger.info(f"macOS 줄: {line}")
-                if ip in line:
-                    parts = line.split()
-                    logger.info(f"macOS parts: {parts}")
-                    if len(parts) > 3:
-                        mac = parts[3]
-                        logger.info(f"macOS에서 {ip}의 MAC 주소: {mac}")
-                        return mac
-            return 'Unknown'
-        else:
-            logger.error(f"지원되지 않는 운영 체제: {system}")
-            return 'Unknown'
-    except:
-        logger.error(f"{ip}의 MAC 주소를 가져오는 중 오류 발생: ")
-        return 'Unknown'
-
 
 def get_hostname_by_ip(ip):
     try:
