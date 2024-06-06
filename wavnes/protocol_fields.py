@@ -113,7 +113,7 @@ class MqttFields(ProtocolFields):
         ],
         "CONNACK": [
             ('conack_flags', 8),
-            ('connack_reason_code', 8),
+            ('conack_val', 8),
         ],
         "SUBSCRIBE": [
             ('msgid', 16),
