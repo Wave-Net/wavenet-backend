@@ -3,10 +3,11 @@ from wavnes.sniffer import Sniffer
 
 
 class Device:
-    def __init__(self, mac, ip, hostname):
+    def __init__(self, mac, ip, hostname, vendor):
         self.mac = mac
         self.ip = ip
         self.hostname = hostname
+        self.vendor = vendor
         self.stat_info = PacketStatInfo(ip)
         self.sniffer = None
 
@@ -14,7 +15,8 @@ class Device:
         return {
             'mac': self.mac,
             'ip': self.ip,
-            'hostname': self.hostname
+            'hostname': self.hostname,
+            'vendor': self.vendor,
         }
 
     def get_stat_info(self):
