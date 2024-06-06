@@ -132,3 +132,30 @@ def packet_to_dict(packet):
         pkt_dict[layer_name] = layer_dict
 
     return pkt_dict
+
+
+def make_packet_info(time_info, packet):
+    iot_protocol = ''
+    summary = ''
+    if 'mqtt' in packet:
+        iot_protocol = 'MQTT'
+        summary = packet.mqtt.msgtype.showname_value
+    elif 'coap' in packet:
+        iot_protocol = 'CoAP'
+        summary = packet.coap.code.showname_value
+
+    packet_info = {'type': 'packet',
+                   'data': {'info': {},
+                            'layers': {}}
+                   }
+    time_info.update(packet)
+    packet_info['data']['info'].update(time_info.get_time_info())
+    packet_info['data']['info'].update({'src': packet.ip.src})
+    packet_info['data']['info'].update({'dst': packet.ip.dst})
+    packet_info['data']['info'].update({'len': len(packet)})
+    packet_info['data']['info'].update({'protocol': iot_protocol})
+    packet_info['data']['info'].update({'summary': summary})
+
+    packet_info['data']['layers'].update(packet_to_dict(packet))
+
+    return packet_info
