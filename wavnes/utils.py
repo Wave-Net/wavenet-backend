@@ -177,33 +177,40 @@ def make_packet_info(time_info, packet):
 
 def get_mac_by_ip(ip):
     try:
-        if platform.system() == 'Windows':
-            cmd = f"ipconfig /all"
+        system = platform.system()
+        if system == 'Windows':
+            cmd = f"arp -a {ip}"
             output = subprocess.check_output(cmd, shell=True).decode()
             lines = output.split('\n')
             for line in lines:
-                if ip in line and 'Physical Address' in line:
-                    mac = line.split(':')[1].strip()
-                    logger.debug(f"MAC address for {ip}: {mac}")
-                    return mac
-        elif platform.system() == 'Linux':
+                if ip in line:
+                    parts = line.split()
+                    if len(parts) > 1:
+                        mac = parts[1]
+                        logger.debug(f"MAC address for {ip} on Windows: {mac}")
+                        return mac
+        elif system == 'Linux':
             cmd = f"ip neigh show {ip}"
             output = subprocess.check_output(cmd, shell=True).decode()
             lines = output.split('\n')
             for line in lines:
                 if ip in line:
-                    mac = line.split()[4]
-                    logger.debug(f"MAC address for {ip}: {mac}")
-                    return mac
-        elif platform.system() == 'Darwin':
+                    parts = line.split()
+                    if len(parts) > 4:
+                        mac = parts[4]
+                        logger.debug(f"MAC address for {ip} on Linux: {mac}")
+                        return mac
+        elif system == 'Darwin':
             cmd = f"arp {ip}"
             output = subprocess.check_output(cmd, shell=True).decode()
             lines = output.split('\n')
             for line in lines:
                 if ip in line:
-                    mac = line.split()[3]
-                    logger.debug(f"MAC address for {ip}: {mac}")
-                    return mac
+                    parts = line.split()
+                    if len(parts) > 3:
+                        mac = parts[3]
+                        logger.debug(f"MAC address for {ip} on macOS: {mac}")
+                        return mac
         else:
             logger.error(f"Unsupported operating system: {platform.system()}")
             return 'Unknown'
