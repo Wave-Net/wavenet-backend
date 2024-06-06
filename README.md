@@ -1,2 +1,5 @@
 # wavenet-backend
-packet capture logic using scapy library
+MQTT, CoAP packet capture server using pyshark library
+
+# 실행
+PYTHONPATH=. python -m wavnes

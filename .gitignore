@@ -1,0 +1,6 @@
+*__pycache__*
+*myenv*
+.DS_Store
+*pcap/
+*csv/
+*json/
