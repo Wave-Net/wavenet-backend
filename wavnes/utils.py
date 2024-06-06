@@ -193,6 +193,7 @@ def get_mac_by_ip(ip):
                         mac = parts[1]
                         logger.info(f"Windows에서 {ip}의 MAC 주소: {mac}")
                         return mac
+            return 'Unknown'
         elif system == 'Linux':
             cmd = f"sudo ip neigh show {ip}"
             output = subprocess.check_output(cmd, shell=True).decode().strip()
@@ -207,6 +208,7 @@ def get_mac_by_ip(ip):
                         mac = parts[4]
                         logger.info(f"Linux에서 {ip}의 MAC 주소: {mac}")
                         return mac
+            return 'Unknown'
         elif system == 'Darwin':
             cmd = f"arp {ip}"
             output = subprocess.check_output(cmd, shell=True).decode()
@@ -221,11 +223,12 @@ def get_mac_by_ip(ip):
                         mac = parts[3]
                         logger.info(f"macOS에서 {ip}의 MAC 주소: {mac}")
                         return mac
+            return 'Unknown'
         else:
             logger.error(f"지원되지 않는 운영 체제: {system}")
             return 'Unknown'
     except:
-        logger.error(f"{ip}의 MAC 주소를 가져오는 중 오류 발생: {str(e)}")
+        logger.error(f"{ip}의 MAC 주소를 가져오는 중 오류 발생: ")
         return 'Unknown'
 
 
