@@ -4,6 +4,7 @@ import pyshark
 import platform
 import subprocess
 import socket
+import netifaces
 from mac_vendor_lookup import AsyncMacLookup
 from wavnes.protocol_fields import PROTOCOL_FIELDS_CLASSES
 from wavnes.logging_config import logger
@@ -174,6 +175,20 @@ def make_packet_info(time_info, packet):
 
     return packet_info
 
+def get_mac_address(ip):
+    interfaces = netifaces.interfaces()
+    for interface in interfaces:
+        addr = netifaces.ifaddresses(interface)
+        if netifaces.AF_INET in addr:
+            ip_addresses = [ip_addr['addr'] for ip_addr in addr[netifaces.AF_INET]]
+            if ip in ip_addresses:
+                mac_address = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr']
+                logger.info(f"MAC address of {ip} on interface {interface}: {mac_address}")
+                return mac_address
+
+    # IP address not found
+    logger.warning(f"Could not find MAC address for IP {ip}")
+    return None
 
 def get_mac_by_ip(ip):
     try:
