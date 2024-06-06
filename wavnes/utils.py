@@ -4,6 +4,7 @@ import pyshark
 import platform
 import subprocess
 import socket
+import netifaces
 from mac_vendor_lookup import AsyncMacLookup
 from wavnes.protocol_fields import PROTOCOL_FIELDS_CLASSES
 from wavnes.logging_config import logger
@@ -174,43 +175,18 @@ def make_packet_info(time_info, packet):
 
     return packet_info
 
-
 def get_mac_by_ip(ip):
-    try:
-        if platform.system() == 'Windows':
-            cmd = f"ipconfig /all"
-            output = subprocess.check_output(cmd, shell=True).decode()
-            lines = output.split('\n')
-            for line in lines:
-                if ip in line and 'Physical Address' in line:
-                    mac = line.split(':')[1].strip()
-                    logger.debug(f"MAC address for {ip}: {mac}")
-                    return mac
-        elif platform.system() == 'Linux':
-            cmd = f"ip neigh show {ip}"
-            output = subprocess.check_output(cmd, shell=True).decode()
-            lines = output.split('\n')
-            for line in lines:
-                if ip in line:
-                    mac = line.split()[4]
-                    logger.debug(f"MAC address for {ip}: {mac}")
-                    return mac
-        elif platform.system() == 'Darwin':
-            cmd = f"arp {ip}"
-            output = subprocess.check_output(cmd, shell=True).decode()
-            lines = output.split('\n')
-            for line in lines:
-                if ip in line:
-                    mac = line.split()[3]
-                    logger.debug(f"MAC address for {ip}: {mac}")
-                    return mac
-        else:
-            logger.error(f"Unsupported operating system: {platform.system()}")
-            return 'Unknown'
-    except Exception as e:
-        logger.error(f"Error getting MAC address for {ip}: {str(e)}")
-        return 'Unknown'
-
+    interfaces = netifaces.interfaces()
+    for interface in interfaces:
+        addr = netifaces.ifaddresses(interface)
+        if netifaces.AF_INET in addr:
+            ip_addresses = [ip_addr['addr'] for ip_addr in addr[netifaces.AF_INET]]
+            if ip in ip_addresses:
+                mac_address = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr']
+                logger.info(f"MAC address of {ip} on interface {interface}: {mac_address}")
+                return mac_address
+    logger.warning(f"Could not find MAC address for IP {ip}")
+    return 'Unknown'
 
 def get_hostname_by_ip(ip):
     try:
