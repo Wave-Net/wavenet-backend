@@ -2,6 +2,9 @@ import os
 import json
 import pyshark
 import platform
+import subprocess
+import socket
+from mac_vendor_lookup import AsyncMacLookup
 from wavnes.protocol_fields import PROTOCOL_FIELDS_CLASSES
 from wavnes.logging_config import logger
 
@@ -131,11 +134,12 @@ def packet_to_dict(packet):
             layer_dict = {}
             for field_name, field_length in fields:
                 try:
-                    field_dict = field_to_dict(current_layer, field_name, field_length)
+                    field_dict = field_to_dict(
+                        current_layer, field_name, field_length)
                 except:
                     continue
                 layer_dict[field_name] = field_dict
-            
+
             if layer_name == 'MQTT':
                 pkt_dict[f'{layer_name}{i + 1}'] = layer_dict
             else:
@@ -169,3 +173,63 @@ def make_packet_info(time_info, packet):
     packet_info['data']['layers'].update(packet_to_dict(packet))
 
     return packet_info
+
+
+def get_mac_by_ip(ip):
+    try:
+        if platform.system() == 'Windows':
+            cmd = f"ipconfig /all"
+            output = subprocess.check_output(cmd, shell=True).decode()
+            lines = output.split('\n')
+            for line in lines:
+                if ip in line and 'Physical Address' in line:
+                    mac = line.split(':')[1].strip()
+                    logger.debug(f"MAC address for {ip}: {mac}")
+                    return mac
+        elif platform.system() == 'Linux':
+            cmd = f"ip neigh show {ip}"
+            output = subprocess.check_output(cmd, shell=True).decode()
+            lines = output.split('\n')
+            for line in lines:
+                if ip in line:
+                    mac = line.split()[4]
+                    logger.debug(f"MAC address for {ip}: {mac}")
+                    return mac
+        elif platform.system() == 'Darwin':
+            cmd = f"arp {ip}"
+            output = subprocess.check_output(cmd, shell=True).decode()
+            lines = output.split('\n')
+            for line in lines:
+                if ip in line:
+                    mac = line.split()[3]
+                    logger.debug(f"MAC address for {ip}: {mac}")
+                    return mac
+        else:
+            logger.error(f"Unsupported operating system: {platform.system()}")
+            return 'Unknown'
+    except Exception as e:
+        logger.error(f"Error getting MAC address for {ip}: {str(e)}")
+        return 'Unknown'
+
+
+def get_hostname_by_ip(ip):
+    try:
+        hostname = socket.gethostbyaddr(ip)[0]
+        logger.debug(f"Hostname for {ip}: {hostname}")
+        return hostname
+    except socket.herror as e:
+        # logger.error(f"Error getting hostname for {ip}: {str(e)}")
+        return 'Unknown'
+    except Exception as e:
+        # logger.error(f"Error getting hostname for {ip}: {str(e)}")
+        return 'Unknown'
+
+
+async def get_vendor_by_mac(mac):
+    try:
+        vendor = await AsyncMacLookup().lookup(mac)
+        logger.debug(f"Vendor for {mac}: {vendor}")
+        return vendor
+    except Exception as e:
+        logger.error(f"Error getting vendor for {mac}: {str(e)}")
+        return 'Unknown'

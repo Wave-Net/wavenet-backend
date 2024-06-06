@@ -1,7 +1,8 @@
 import netifaces
-import socket
 import asyncio
 from wavnes.device import Device
+from wavnes.utils import get_mac_by_ip, get_hostname_by_ip, get_vendor_by_mac
+from wavnes.logging_config import logger
 
 
 class NetworkMonitor:
@@ -10,7 +11,7 @@ class NetworkMonitor:
         self.devices = {}
         self.update_interval = 1
         self.monitoring_task = None
-        
+
     async def start(self):
         self.monitoring_task = asyncio.create_task(self._monitoring_loop())
 
@@ -22,10 +23,10 @@ class NetworkMonitor:
             except asyncio.CancelledError:
                 pass
             self.monitoring_task = None
-            
+
     async def _monitoring_loop(self):
         while True:
-            self.update_devices()
+            await self.update_devices()
             await asyncio.sleep(self.update_interval)
 
     def get_device_by_ip(self, ip):
@@ -39,16 +40,18 @@ class NetworkMonitor:
             device.stop_sniffer()
         self.devices = {}
 
-    def _add_device(self, ip):
+    async def _add_device(self, ip):
         try:
-            mac = self._get_mac_by_ip(ip)
-            hostname = socket.gethostbyaddr(ip)[0]
+            mac = get_mac_by_ip(ip)
+            hostname = get_hostname_by_ip(ip)
+            vendor = await get_vendor_by_mac(mac)
         except:
             mac = 'Unknown'
             hostname = 'Unknown'
+            vendor = 'Unknown'
 
         if ip not in self.devices:
-            device = Device(mac, ip, hostname)
+            device = Device(mac, ip, hostname, vendor)
             device.start_sniffer()
             self.devices[ip] = device
 
@@ -58,13 +61,13 @@ class NetworkMonitor:
             device.stop_sniffer()
             del self.devices[ip]
 
-    def update_devices(self):
+    async def update_devices(self):
         current_ips = set()
         for addr in netifaces.ifaddresses(self.interface)[netifaces.AF_INET]:
             ip = addr['addr']
             current_ips.add(ip)
             if ip not in self.devices:
-                self._add_device(ip)
+                await self._add_device(ip)
 
         for ip in list(self.devices.keys()):
             if ip not in current_ips:
