@@ -82,10 +82,7 @@ class UdpFields(ProtocolFields):
 
 class MqttFields(ProtocolFields):
     COMMON_FIELDS = [
-        ('msgtype', 4),
-        ('dupflag', 1),
-        ('qos', 1),
-        ('retain', 1),
+        ('hdrflags', 8),
         ('len', '~'),
     ]
     LAYER_NAME = 'MQTT'
@@ -93,10 +90,12 @@ class MqttFields(ProtocolFields):
     SPECIFIC_FIELDS = {
         "CONNECT": [
             ('proto_len', 16),
-            ('protoname', 8),
+            ('protoname', '~'),
+            ('ver', 8),
             ('conflag_uname', 1),
             ('conflag_passwd', 1),
-            ('conflag_qos', 1),
+            ('conflag_retain', 1),
+            ('conflag_qos', 2),
             ('conflag_willflag', 1),
             ('conflag_cleansess', 1),
             ('conflag_reserved', 1),

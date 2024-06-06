@@ -2,7 +2,7 @@ import threading
 import asyncio
 from pyshark import LiveCapture
 from pyshark.packet.packet import Packet
-from wavnes.utils import packet_to_dict, device_ip_to_file_path
+from wavnes.utils import device_ip_to_file_path, make_packet_info
 from wavnes.info import PacketTimeInfo
 from wavnes.pcap_file_generator import PcapFileGenerator
 from wavnes.config import PCAP_DIRECTORY, NETWORK_INTERFACE
@@ -43,24 +43,6 @@ class Sniffer(threading.Thread):
     def _update_stat_info(self, src, dst, data):
         self.device.stat_info.update(src, dst, data)
 
-    def _make_packet_info(self, packet):
-        iot_protocol = 'None'
-        if 'mqtt' in packet:
-            iot_protocol = 'mqtt'
-        elif 'coap' in packet:
-            iot_protocol = 'coap'
-
-        packet_info = {'type': 'packet',
-                       'data': {'info': {},
-                                'layers': {}}
-                       }
-        self.time_info.update(packet)
-        packet_info['data']['info'].update(self.time_info.get_time_info())
-        packet_info['data']['info'].update({'protocol': iot_protocol})
-        packet_info['data']['layers'].update(packet_to_dict(packet))
-
-        return packet_info
-
     async def _send_packet_info(self, packet_info, websocket):
         try:
             await websocket.send_json(packet_info)
@@ -80,7 +62,7 @@ class Sniffer(threading.Thread):
             packet.ip.src, packet.ip.dst, int(packet.length))
 
         if self.packet_send_event.is_set():
-            packet_info = self._make_packet_info(packet)
+            packet_info = make_packet_info(self.time_info, packet)
             asyncio.run_coroutine_threadsafe(self._send_packet_info(
                 packet_info, self.websocket), self.loop)
 
