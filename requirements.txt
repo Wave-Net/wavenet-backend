@@ -1,0 +1,6 @@
+pyshark
+netifaces
+mac_vendor_lookup
+scapy
+uvicorn
+fastapi
